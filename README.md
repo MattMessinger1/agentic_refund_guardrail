@@ -19,6 +19,18 @@
 
 ---
 
+## Questions & answers
+
+**Q: How is this different from “agent guardrail” products like [Veto](https://veto.so/), [PolicyLayer](https://policylayer.com/), or [Kvlar](https://github.com/nichochar/kvlar)?**  
+**A:** Those often answer: *should this tool run at all?* **refund-guard** answers: *for this order and this amount, does our business policy allow it?* Use both if you want: one for coarse control, this for refund math and windows.
+
+**Q: What signature does my provider refund function use?**  
+**A:** The same everywhere: **`provider_refund_fn(amount, transaction_id, currency)`** (TypeScript: **`providerRefundFn`**). Examples: Stripe, PayPal, Shopify, your own HTTP API.
+
+*(The same topics are explained in more detail under [How this differs from “agent guardrail” products](#how-this-differs-from-agent-guardrail-products) and [Works with any provider function](#works-with-any-provider-function) below.)*
+
+---
+
 ## The idea in one picture
 
 ```text

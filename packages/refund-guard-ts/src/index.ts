@@ -4,7 +4,9 @@ import { RefundTool, type ProviderRefundFn, type RefundResult } from "./tool.js"
 export type { PolicyMap, SkuPolicy, ProviderRefundFn, RefundResult };
 export { loadPolicy, RefundTool };
 
-export type RefundCallable = ((amount: number) => RefundResult) & { tool: RefundTool };
+export type RefundCallable = ((amount: number) => Promise<RefundResult>) & {
+  tool: RefundTool;
+};
 
 export class Refunds {
   private readonly policies: PolicyMap;

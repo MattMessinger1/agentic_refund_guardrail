@@ -69,7 +69,7 @@ describe("parity fixtures (TypeScript)", () => {
   });
 
   for (const case_ of doc.tests) {
-    it(case_.id, () => {
+    it(case_.id, async () => {
       const clock = parseDateTime(case_.clock_now, false);
       const purchased = parseDateTime(
         case_.purchased_at,
@@ -91,7 +91,7 @@ describe("parity fixtures (TypeScript)", () => {
 
       for (const step of case_.steps) {
         refund.tool.setProviderRefundFn(makeProvider(step.provider, calls));
-        const result = refund(step.amount) as Record<string, unknown>;
+        const result = (await refund(step.amount)) as Record<string, unknown>;
         assertSubset(step.expect, result);
 
         if (step.expect_detail_contains) {

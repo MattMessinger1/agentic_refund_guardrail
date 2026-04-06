@@ -6,7 +6,7 @@ export type ProviderRefundFn = (
   amount: number,
   transactionId: string,
   currency: string,
-) => unknown;
+) => unknown | Promise<unknown>;
 
 /** Parse ISO datetime; naive strings are interpreted as UTC (matches Python naive→UTC). */
 export function parseDateTime(iso: string, naive: boolean): Date {
@@ -77,7 +77,7 @@ export class RefundTool {
     this.providerRefundFn = fn;
   }
 
-  call(amount: number): RefundResult {
+  async call(amount: number): Promise<RefundResult> {
     const a = Number(amount);
     const denied = this.validate(a);
     if (denied) {
@@ -85,7 +85,9 @@ export class RefundTool {
       return denied;
     }
     try {
-      const providerResult = this.providerRefundFn(a, this.transactionId, this.currency);
+      const providerResult = await Promise.resolve(
+        this.providerRefundFn(a, this.transactionId, this.currency),
+      );
       this.totalRefunded += a;
       const result: RefundResult = {
         status: "approved",

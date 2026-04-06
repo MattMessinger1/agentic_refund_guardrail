@@ -92,6 +92,7 @@ result = refund_tool(80.00)
 import { Refunds } from "@mattmessinger/refund-guard";
 
 const refunds = new Refunds("refund_policy.yaml");
+// In an async function or route handler:
 
 const refund = refunds.makeRefundTool({
   sku: order.sku,
@@ -106,8 +107,10 @@ const refund = refunds.makeRefundTool({
     }),
 });
 
-const result = refund(80.0);
+const result = await refund(80.0);
 ```
+
+The callable is **async** so `providerRefundFn` may return a Promise (e.g. Stripe’s Node client). Sync functions work too.
 
 Optional `nowFn` (and in Python `now_fn`) is available for **deterministic tests**; production code can omit it (defaults to current UTC time).
 

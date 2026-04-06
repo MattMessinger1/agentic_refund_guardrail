@@ -16,18 +16,8 @@
 | Does it run on my phone? | **Not inside the app.** Your mobile app calls **your backend**; the backend runs this library. |
 | Do I need Python *and* TypeScript? | **No.** Pick **one** — whatever your backend uses. |
 | What does it actually do? | Wraps **your** existing Stripe (or other) refund call with **policy checks** before money moves. |
-
----
-
-## Questions & answers
-
-**Q: How is this different from “agent guardrail” products like [Veto](https://veto.so/), [PolicyLayer](https://policylayer.com/), or [Kvlar](https://github.com/nichochar/kvlar)?**  
-**A:** Those often answer: *should this tool run at all?* **refund-guard** answers: *for this order and this amount, does our business policy allow it?* Use both if you want: one for coarse control, this for refund math and windows.
-
-**Q: What signature does my provider refund function use?**  
-**A:** The same everywhere: **`provider_refund_fn(amount, transaction_id, currency)`** (TypeScript: **`providerRefundFn`**). Examples: Stripe, PayPal, Shopify, your own HTTP API.
-
-*(The same topics are explained in more detail under [How this differs from “agent guardrail” products](#how-this-differs-from-agent-guardrail-products) and [Works with any provider function](#works-with-any-provider-function) below.)*
+| How is this different from “agent guardrail” products ([Veto](https://veto.so/), [PolicyLayer](https://policylayer.com/), [Kvlar](https://github.com/nichochar/kvlar), …)? | Those often answer: *should this tool run at all?* **refund-guard** answers: *for this order and this amount, does our business policy allow it?* Use both if you want: one for coarse control, this for refund math and windows. |
+| What signature does my provider refund function use? | Same everywhere: **`provider_refund_fn(amount, transaction_id, currency)`** (TypeScript: **`providerRefundFn`**). Examples: Stripe, PayPal, Shopify, your own HTTP API. |
 
 ---
 

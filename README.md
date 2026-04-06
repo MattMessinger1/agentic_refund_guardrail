@@ -1,5 +1,10 @@
 # refund-guard
 
+[![CI](https://github.com/MattMessinger1/agentic_refund_guardrail/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/MattMessinger1/agentic_refund_guardrail/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](pyproject.toml)
+[![Node 18+](https://img.shields.io/badge/node-18+-green.svg)](packages/refund-guard-ts/package.json)
+
 **Start here:** [Step-by-step guide](docs/STEP_BY_STEP.md) · [Contributing](CONTRIBUTING.md) · [Report an issue](https://github.com/MattMessinger1/agentic_refund_guardrail/issues/new/choose)
 
 **A small library** that turns **one real order** into **one safe refund function** for your AI agent — so the agent can only refund what your policy allows (window, amount cap, remaining balance).
@@ -55,6 +60,19 @@ npm install @mattmessinger/refund-guard
 ```
 
 Both implementations follow the **same** behavior. Shared tests live in [`contracts/parity/cases.json`](contracts/parity/cases.json). Publishing both under one version line is described in [RELEASING.md](RELEASING.md).
+
+**PyPI / npm:** publishing checklist and what you must do by hand → [docs/MANUAL_STEPS.md](docs/MANUAL_STEPS.md).
+
+---
+
+## Runnable examples (no Stripe keys)
+
+| | |
+|---|---|
+| **Python** | [`examples/minimal-python/`](examples/minimal-python/README.md) — `pip install -e ".[dev]"` then `python examples/minimal-python/run.py` |
+| **TypeScript** | [`examples/minimal-ts/`](examples/minimal-ts/README.md) — build `packages/refund-guard-ts`, then `npm install` + `npm start` in the example folder |
+
+The older Stripe-oriented sample is still at [`examples/stripe_example.py`](examples/stripe_example.py).
 
 ---
 
@@ -268,7 +286,10 @@ No. It sits **in front of** your existing refund code.
 So pip users and npm users get the **same behavior** — locked by shared tests, not by vibes.
 
 **Where do I ask questions?**  
-Use [Issues → New issue](https://github.com/MattMessinger1/agentic_refund_guardrail/issues/new/choose) (Question template). Maintainers: [docs/GITHUB_SETUP.md](docs/GITHUB_SETUP.md) for About box, topics, branch protection.
+Use [Issues → New issue](https://github.com/MattMessinger1/agentic_refund_guardrail/issues/new/choose) (Question template). Maintainers: [docs/GITHUB_SETUP.md](docs/GITHUB_SETUP.md) for About box, topics, branch protection; [docs/MANUAL_STEPS.md](docs/MANUAL_STEPS.md) for PyPI/npm publish.
+
+**Security disclosures?**  
+See [SECURITY.md](SECURITY.md).
 
 ---
 

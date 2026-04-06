@@ -29,6 +29,20 @@ npm run build
 
 Run both before opening a PR that touches refund logic.
 
+### Smoke examples
+
+After installing the Python package (`pip install -e ".[dev]"`):
+
+```bash
+python examples/minimal-python/run.py
+```
+
+After building the TS package (`cd packages/refund-guard-ts && npm ci && npm run build`):
+
+```bash
+cd examples/minimal-ts && npm ci && npm start
+```
+
 ## Changing behavior
 
 If you change **when** a refund is allowed/denied, or **what** is returned:

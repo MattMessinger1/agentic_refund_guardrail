@@ -2,6 +2,8 @@
 
 The repo already includes CI (`.github/workflows/ci.yml`), issue templates, and `CONTRIBUTING.md`. A few things must be toggled **in the GitHub web UI** (this file cannot set them for you).
 
+**Publishing PyPI/npm and tokens:** see [MANUAL_STEPS.md](MANUAL_STEPS.md).
+
 ## Repository “About”
 
 On the repo home page, click **⚙️** next to **About**.

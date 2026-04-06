@@ -1,0 +1,14 @@
+{
+  "name": "refund-guard-minimal-example",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx main.ts"
+  },
+  "dependencies": {
+    "@mattmessinger/refund-guard": "file:../../packages/refund-guard-ts"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0"
+  }
+}

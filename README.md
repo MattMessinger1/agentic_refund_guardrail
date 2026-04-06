@@ -1,5 +1,7 @@
 # refund-guard
 
+**Start here:** [Step-by-step guide](docs/STEP_BY_STEP.md) · [Contributing](CONTRIBUTING.md) · [Report an issue](https://github.com/MattMessinger1/agentic_refund_guardrail/issues/new/choose)
+
 **A small library** that turns **one real order** into **one safe refund function** for your AI agent — so the agent can only refund what your policy allows (window, amount cap, remaining balance).
 
 > **New here?** Read [docs/STEP_BY_STEP.md](docs/STEP_BY_STEP.md) first, then come back for details.
@@ -264,7 +266,7 @@ No. It sits **in front of** your existing refund code.
 So pip users and npm users get the **same behavior** — locked by shared tests, not by vibes.
 
 **Where do I ask questions?**  
-[GitHub Issues](https://github.com/MattMessinger1/agentic_refund_guardrail/issues).
+Use [Issues → New issue](https://github.com/MattMessinger1/agentic_refund_guardrail/issues/new/choose) (Question template). Maintainers: [docs/GITHUB_SETUP.md](docs/GITHUB_SETUP.md) for About box, topics, branch protection.
 
 ---
 

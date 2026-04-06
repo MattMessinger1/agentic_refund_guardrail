@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Step-by-step guide
+    url: https://github.com/MattMessinger1/agentic_refund_guardrail/blob/main/docs/STEP_BY_STEP.md
+    about: New to the library — start here.
+  - name: Contributing
+    url: https://github.com/MattMessinger1/agentic_refund_guardrail/blob/main/CONTRIBUTING.md
+    about: How to run tests and change parity fixtures.

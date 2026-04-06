@@ -1,0 +1,25 @@
+name: Question
+description: Ask how to use the library (integration, policy YAML, Stripe, etc.)
+title: "[question] "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Check [docs/STEP_BY_STEP.md](https://github.com/MattMessinger1/agentic_refund_guardrail/blob/main/docs/STEP_BY_STEP.md) first — it covers the happy path.
+  - type: textarea
+    id: question
+    attributes:
+      label: Your question
+    validations:
+      required: true
+  - type: dropdown
+    id: language
+    attributes:
+      label: Language / runtime
+      options:
+        - Python
+        - TypeScript / Node
+        - Other / not sure
+    validations:
+      required: true

@@ -1,0 +1,15 @@
+name: Documentation fix
+description: README wrong, typo, confusing step, broken link
+title: "[docs] "
+labels: ["documentation"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is wrong or confusing?
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested wording or fix (optional)

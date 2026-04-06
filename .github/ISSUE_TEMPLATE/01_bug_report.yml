@@ -1,0 +1,37 @@
+name: Bug report
+description: Something is broken or behaves differently in Python vs TypeScript
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. If Python and TypeScript disagree, mention **both** — we use shared fixtures in `contracts/parity/cases.json`.
+  - type: dropdown
+    id: runtime
+    attributes:
+      label: Where did you see this?
+      options:
+        - Python (pip / refund-guard)
+        - TypeScript / Node (npm / @mattmessinger/refund-guard)
+        - Both
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal code or steps to reproduce (optional)
+      description: Policy YAML snippet, amounts, dates, etc.

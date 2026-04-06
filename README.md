@@ -29,9 +29,19 @@ Everything comes from your app.
 
 ### Install
 
+**Python (PyPI)**
+
 ```bash
 pip install refund-guard
 ```
+
+**TypeScript / Node (npm)**
+
+```bash
+npm install @mattmessinger/refund-guard
+```
+
+Both implementations follow the **same** behavioral contract. Shared JSON fixtures in [`contracts/parity/cases.json`](contracts/parity/cases.json) are run in CI for Python and TypeScript so the two packages do not drift. See [RELEASING.md](RELEASING.md).
 
 ### Define your refund policy
 
@@ -45,7 +55,7 @@ skus:
     refund_window_days: 30
 ```
 
-### Use it
+### Use it (Python)
 
 ```python
 from datetime import datetime
@@ -75,6 +85,31 @@ refund_tool = refunds.make_refund_tool(
 # This is all the agent gets
 result = refund_tool(80.00)
 ```
+
+### Use it (TypeScript)
+
+```typescript
+import { Refunds } from "@mattmessinger/refund-guard";
+
+const refunds = new Refunds("refund_policy.yaml");
+
+const refund = refunds.makeRefundTool({
+  sku: order.sku,
+  transactionId: order.transactionId,
+  amountPaid: order.amountPaid,
+  purchasedAt: order.purchasedAt,
+  providerRefundFn: (amount, transactionId, currency) =>
+    stripe.refunds.create({
+      payment_intent: transactionId,
+      amount: Math.round(amount * 100),
+      currency,
+    }),
+});
+
+const result = refund(80.0);
+```
+
+Optional `nowFn` (and in Python `now_fn`) is available for **deterministic tests**; production code can omit it (defaults to current UTC time).
 
 ### What comes back
 
@@ -203,7 +238,11 @@ stays exactly the same.
 
 **How big is this?**
 
-About 200 lines of Python. One dependency (pyyaml).
+Small surface area: Python depends on PyYAML; TypeScript depends on `yaml` for file loading. Validation logic is duplicated only in the sense of two hand-maintained ports — **behavior** is locked by shared parity tests, not by copy-paste trust.
+
+**Why two languages in one repo?**
+
+Runtimes are **MECE**: you install via **pip** *or* **npm**, not both in one process. Semantics stay **one version line**: same semver on PyPI and npm, same fixture file, dual CI (see [RELEASING.md](RELEASING.md)).
 
 ## License
 

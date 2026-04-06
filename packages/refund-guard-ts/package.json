@@ -1,0 +1,46 @@
+{
+  "name": "@mattmessinger/refund-guard",
+  "version": "0.1.0",
+  "description": "TypeScript port of refund-guard — same behavior as the Python package (shared parity fixtures).",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [
+    "refunds",
+    "guardrails",
+    "agents",
+    "stripe",
+    "safety"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "yaml": "^2.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MattMessinger1/agentic_refund_guardrail.git",
+    "directory": "packages/refund-guard-ts"
+  }
+}

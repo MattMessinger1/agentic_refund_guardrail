@@ -9,6 +9,8 @@ from refund_guard._policy import SkuPolicy
 
 logger = logging.getLogger("refund_guard")
 
+_DEFAULT_NOW = lambda: datetime.now(timezone.utc)  # noqa: E731
+
 
 class RefundTool:
     """A callable that validates and executes a refund for one specific order.
@@ -28,6 +30,7 @@ class RefundTool:
         provider: str,
         provider_refund_fn: Callable[[float, str, str], Any],
         policy: SkuPolicy,
+        now_fn: Callable[[], datetime] | None = None,
     ) -> None:
         self._sku = sku
         self._transaction_id = transaction_id
@@ -38,6 +41,7 @@ class RefundTool:
         self._provider_refund_fn = provider_refund_fn
         self._policy = policy
         self._total_refunded: float = 0.0
+        self._now_fn = now_fn if now_fn is not None else _DEFAULT_NOW
 
     def __call__(self, amount: float) -> dict[str, Any]:
         amount = float(amount)
@@ -71,7 +75,9 @@ class RefundTool:
         return result
 
     def _validate(self, amount: float) -> dict[str, Any] | None:
-        now = datetime.now(timezone.utc)
+        now = self._now_fn()
+        if now.tzinfo is None:
+            now = now.replace(tzinfo=timezone.utc)
         purchased = self._purchased_at
         if purchased.tzinfo is None:
             purchased = purchased.replace(tzinfo=timezone.utc)

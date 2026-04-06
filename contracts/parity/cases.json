@@ -1,0 +1,313 @@
+{
+  "version": 1,
+  "description": "Shared behavioral contract for refund-guard Python and TypeScript. CI runs these against both implementations.",
+  "tests": [
+    {
+      "id": "approved_full",
+      "policy": { "skus": { "shampoo": { "refund_window_days": 30 } } },
+      "clock_now": "2026-06-15T12:00:00Z",
+      "sku": "shampoo",
+      "transaction_id": "pi_100",
+      "amount_paid": 100,
+      "purchased_at": "2026-06-10T12:00:00Z",
+      "currency": "usd",
+      "steps": [
+        {
+          "amount": 100,
+          "provider": "success",
+          "expect": {
+            "status": "approved",
+            "refunded_amount": 100,
+            "transaction_id": "pi_100"
+          }
+        }
+      ]
+    },
+    {
+      "id": "approved_partial",
+      "policy": { "skus": { "shampoo": { "refund_window_days": 30 } } },
+      "clock_now": "2026-06-15T12:00:00Z",
+      "sku": "shampoo",
+      "transaction_id": "pi_200",
+      "amount_paid": 120,
+      "purchased_at": "2026-06-10T12:00:00Z",
+      "currency": "usd",
+      "steps": [
+        {
+          "amount": 80,
+          "provider": "success",
+          "expect": {
+            "status": "approved",
+            "refunded_amount": 80,
+            "transaction_id": "pi_200"
+          }
+        }
+      ]
+    },
+    {
+      "id": "custom_currency_passed_to_provider",
+      "policy": { "skus": { "shampoo": { "refund_window_days": 30 } } },
+      "clock_now": "2026-06-15T12:00:00Z",
+      "sku": "shampoo",
+      "transaction_id": "pi_300",
+      "amount_paid": 50,
+      "purchased_at": "2026-06-10T12:00:00Z",
+      "currency": "eur",
+      "steps": [
+        {
+          "amount": 50,
+          "provider": "success",
+          "expect": {
+            "status": "approved",
+            "refunded_amount": 50,
+            "transaction_id": "pi_300"
+          },
+          "expect_provider_call": [50, "pi_300", "eur"]
+        }
+      ]
+    },
+    {
+      "id": "denied_refund_window_expired",
+      "policy": { "skus": { "digital_course": { "refund_window_days": 7 } } },
+      "clock_now": "2026-06-15T12:00:00Z",
+      "sku": "digital_course",
+      "transaction_id": "pi_old",
+      "amount_paid": 100,
+      "purchased_at": "2025-01-01T12:00:00Z",
+      "currency": "usd",
+      "steps": [
+        {
+          "amount": 50,
+          "provider": "success",
+          "expect": {
+            "status": "denied",
+            "reason": "refund_window_expired",
+            "transaction_id": "pi_old"
+          }
+        }
+      ]
+    },
+    {
+      "id": "denied_zero_amount",
+      "policy": { "skus": { "shampoo": { "refund_window_days": 30 } } },
+      "clock_now": "2026-06-15T12:00:00Z",
+      "sku": "shampoo",
+      "transaction_id": "pi_zero",
+      "amount_paid": 100,
+      "purchased_at": "2026-06-10T12:00:00Z",
+      "currency": "usd",
+      "steps": [
+        {
+          "amount": 0,
+          "provider": "success",
+          "expect": {
+            "status": "denied",
+            "reason": "invalid_amount",
+            "transaction_id": "pi_zero"
+          }
+        }
+      ]
+    },
+    {
+      "id": "denied_negative_amount",
+      "policy": { "skus": { "shampoo": { "refund_window_days": 30 } } },
+      "clock_now": "2026-06-15T12:00:00Z",
+      "sku": "shampoo",
+      "transaction_id": "pi_neg",
+      "amount_paid": 100,
+      "purchased_at": "2026-06-10T12:00:00Z",
+      "currency": "usd",
+      "steps": [
+        {
+          "amount": -10,
+          "provider": "success",
+          "expect": {
+            "status": "denied",
+            "reason": "invalid_amount",
+            "transaction_id": "pi_neg"
+          }
+        }
+      ]
+    },
+    {
+      "id": "denied_amount_exceeds_paid",
+      "policy": { "skus": { "shampoo": { "refund_window_days": 30 } } },
+      "clock_now": "2026-06-15T12:00:00Z",
+      "sku": "shampoo",
+      "transaction_id": "pi_over",
+      "amount_paid": 120,
+      "purchased_at": "2026-06-10T12:00:00Z",
+      "currency": "usd",
+      "steps": [
+        {
+          "amount": 200,
+          "provider": "success",
+          "expect": {
+            "status": "denied",
+            "reason": "amount_exceeds_limit",
+            "requested": 200,
+            "max_allowed": 120,
+            "transaction_id": "pi_over"
+          }
+        }
+      ]
+    },
+    {
+      "id": "denied_exceeds_remaining_after_partial",
+      "policy": { "skus": { "shampoo": { "refund_window_days": 30 } } },
+      "clock_now": "2026-06-15T12:00:00Z",
+      "sku": "shampoo",
+      "transaction_id": "pi_partial",
+      "amount_paid": 100,
+      "purchased_at": "2026-06-10T12:00:00Z",
+      "currency": "usd",
+      "steps": [
+        {
+          "amount": 60,
+          "provider": "success",
+          "expect": {
+            "status": "approved",
+            "refunded_amount": 60,
+            "transaction_id": "pi_partial"
+          }
+        },
+        {
+          "amount": 60,
+          "provider": "success",
+          "expect": {
+            "status": "denied",
+            "reason": "amount_exceeds_remaining",
+            "requested": 60,
+            "remaining": 40,
+            "already_refunded": 60,
+            "transaction_id": "pi_partial"
+          }
+        }
+      ]
+    },
+    {
+      "id": "approved_exact_remaining",
+      "policy": { "skus": { "shampoo": { "refund_window_days": 30 } } },
+      "clock_now": "2026-06-15T12:00:00Z",
+      "sku": "shampoo",
+      "transaction_id": "pi_exact",
+      "amount_paid": 100,
+      "purchased_at": "2026-06-10T12:00:00Z",
+      "currency": "usd",
+      "steps": [
+        {
+          "amount": 60,
+          "provider": "success",
+          "expect": { "status": "approved", "refunded_amount": 60 }
+        },
+        {
+          "amount": 40,
+          "provider": "success",
+          "expect": {
+            "status": "approved",
+            "refunded_amount": 40,
+            "transaction_id": "pi_exact"
+          }
+        }
+      ]
+    },
+    {
+      "id": "denied_fully_exhausted",
+      "policy": { "skus": { "shampoo": { "refund_window_days": 30 } } },
+      "clock_now": "2026-06-15T12:00:00Z",
+      "sku": "shampoo",
+      "transaction_id": "pi_done",
+      "amount_paid": 50,
+      "purchased_at": "2026-06-10T12:00:00Z",
+      "currency": "usd",
+      "steps": [
+        {
+          "amount": 50,
+          "provider": "success",
+          "expect": { "status": "approved", "refunded_amount": 50 }
+        },
+        {
+          "amount": 1,
+          "provider": "success",
+          "expect": {
+            "status": "denied",
+            "reason": "amount_exceeds_remaining",
+            "remaining": 0,
+            "already_refunded": 50,
+            "transaction_id": "pi_done"
+          }
+        }
+      ]
+    },
+    {
+      "id": "error_provider_exception",
+      "policy": { "skus": { "shampoo": { "refund_window_days": 30 } } },
+      "clock_now": "2026-06-15T12:00:00Z",
+      "sku": "shampoo",
+      "transaction_id": "pi_fail",
+      "amount_paid": 100,
+      "purchased_at": "2026-06-10T12:00:00Z",
+      "currency": "usd",
+      "steps": [
+        {
+          "amount": 50,
+          "provider": "fail",
+          "expect": {
+            "status": "error",
+            "reason": "provider_error",
+            "transaction_id": "pi_fail"
+          },
+          "expect_detail_contains": "Provider unavailable"
+        }
+      ]
+    },
+    {
+      "id": "provider_error_does_not_increment_refunded_total",
+      "policy": { "skus": { "shampoo": { "refund_window_days": 30 } } },
+      "clock_now": "2026-06-15T12:00:00Z",
+      "sku": "shampoo",
+      "transaction_id": "pi_retry",
+      "amount_paid": 100,
+      "purchased_at": "2026-06-10T12:00:00Z",
+      "currency": "usd",
+      "steps": [
+        {
+          "amount": 50,
+          "provider": "fail",
+          "expect": { "status": "error", "reason": "provider_error" }
+        },
+        {
+          "amount": 100,
+          "provider": "success",
+          "expect": {
+            "status": "approved",
+            "refunded_amount": 100,
+            "transaction_id": "pi_retry"
+          }
+        }
+      ]
+    },
+    {
+      "id": "naive_purchased_at_treated_as_utc",
+      "policy": { "skus": { "shampoo": { "refund_window_days": 30 } } },
+      "clock_now": "2099-01-15T12:00:00Z",
+      "sku": "shampoo",
+      "transaction_id": "pi_naive",
+      "amount_paid": 50,
+      "purchased_at": "2099-01-01T00:00:00",
+      "purchased_at_is_naive": true,
+      "currency": "usd",
+      "steps": [
+        {
+          "amount": 50,
+          "provider": "success",
+          "expect": {
+            "status": "approved",
+            "refunded_amount": 50,
+            "transaction_id": "pi_naive"
+          }
+        }
+      ]
+    }
+  ]
+}

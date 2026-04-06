@@ -41,6 +41,7 @@ class Refunds:
         provider_refund_fn: Callable[[float, str, str], Any],
         currency: str = "usd",
         provider: str = "unknown",
+        now_fn: Callable[[], datetime] | None = None,
     ) -> RefundTool:
         """Create a refund callable scoped to one order.
 
@@ -61,4 +62,5 @@ class Refunds:
             provider=provider,
             provider_refund_fn=provider_refund_fn,
             policy=self._policies[sku],
+            now_fn=now_fn,
         )

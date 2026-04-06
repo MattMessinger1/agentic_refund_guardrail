@@ -30,6 +30,7 @@ dev = ["pytest>=7.0", "pytest-cov>=4.0"]
 [project.urls]
 Homepage = "https://github.com/MattMessinger1/agentic_refund_guardrail"
 Issues = "https://github.com/MattMessinger1/agentic_refund_guardrail/issues"
+npm = "https://www.npmjs.com/package/@mattmessinger/refund-guard"
 
 [tool.setuptools.packages.find]
 include = ["refund_guard*"]

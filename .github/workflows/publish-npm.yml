@@ -1,0 +1,40 @@
+# Publish @mattmessinger/refund-guard to npm when a GitHub Release is created.
+# One-time setup: add an NPM_TOKEN secret to the repo (Settings → Secrets → Actions).
+# Generate the token at https://www.npmjs.com/settings/mattmessinger/tokens
+# — type: Granular Access Token, permissions: Read and write, packages: @mattmessinger/refund-guard
+
+name: Publish to npm
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/refund-guard-ts
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Publish
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

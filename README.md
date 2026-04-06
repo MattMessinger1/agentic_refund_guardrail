@@ -61,7 +61,7 @@ npm install @mattmessinger/refund-guard
 
 Both implementations follow the **same** behavior. Shared tests live in [`contracts/parity/cases.json`](contracts/parity/cases.json). Publishing both under one version line is described in [RELEASING.md](RELEASING.md).
 
-**PyPI / npm:** publishing checklist and what you must do by hand → [docs/MANUAL_STEPS.md](docs/MANUAL_STEPS.md).
+**PyPI / npm:** publishing checklist and what you must do by hand → [docs/MANUAL_STEPS.md](docs/MANUAL_STEPS.md). **First PyPI publish (trusted publishing):** [docs/PYPI_FIRST_TIME.md](docs/PYPI_FIRST_TIME.md).
 
 ---
 

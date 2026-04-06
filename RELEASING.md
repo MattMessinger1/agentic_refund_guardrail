@@ -22,6 +22,10 @@ Edits to refund logic must update [contracts/parity/cases.json](contracts/parity
 
 ## PyPI
 
+**Preferred:** GitHub Actions **Publish to PyPI** (`.github/workflows/publish-pypi.yml`) after you [register trusted publishing once](docs/PYPI_FIRST_TIME.md). Triggers on **release published** or **workflow_dispatch**.
+
+**Manual (API token on your machine):**
+
 ```bash
 python3 -m pip install build twine
 python3 -m build

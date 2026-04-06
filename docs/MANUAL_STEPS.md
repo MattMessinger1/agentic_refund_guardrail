@@ -4,21 +4,13 @@ Automation and docs in this repo can’t replace these steps — someone with th
 
 ## 1. Publish to PyPI (`refund-guard`)
 
-As of the last check, **`refund-guard` was not on PyPI** (404). To publish:
+**Recommended:** use the repo workflow **Publish to PyPI** (`.github/workflows/publish-pypi.yml`) with **trusted publishing** — no long-lived PyPI token in GitHub.
 
-1. Create accounts on [PyPI](https://pypi.org/) and (recommended) [TestPyPI](https://test.pypi.org/).
-2. Configure **trusted publishing** (OIDC from GitHub) or use **API tokens**.
-3. From the repo root:
+Step-by-step (account + one-time PyPI linking + run workflow): **[PYPI_FIRST_TIME.md](PYPI_FIRST_TIME.md)**.
 
-   ```bash
-   pip install build twine
-   python -m build
-   python -m twine upload dist/*
-   ```
+**Manual alternative** (token on your laptop): `python -m build` then `twine upload dist/*` — see [RELEASING.md](../RELEASING.md).
 
-4. After the first upload, add the PyPI badge in the README (version will resolve on [shields.io](https://shields.io/)).
-
-See also [RELEASING.md](../RELEASING.md).
+After the package exists on PyPI, add a PyPI badge or **Website** link in the repo About (optional).
 
 ## 2. Publish to npm (`@mattmessinger/refund-guard`)
 

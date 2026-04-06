@@ -1,5 +1,7 @@
 # Releasing refund-guard (Python + TypeScript)
 
+> **End users:** see the main [README](README.md) and [docs/STEP_BY_STEP.md](docs/STEP_BY_STEP.md). This file is for **publishing** new versions.
+
 ## Versioning
 
 - Treat **one semantic version** for the *behavior* of the library (e.g. `0.2.0`).

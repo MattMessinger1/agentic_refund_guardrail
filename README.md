@@ -1,33 +1,42 @@
 # refund-guard
 
-Turn a real order into a safe refund tool for your AI agent.
+**A small library** that turns **one real order** into **one safe refund function** for your AI agent — so the agent can only refund what your policy allows (window, amount cap, remaining balance).
 
-If your agent can call Stripe / Shopify / PayPal directly, it can try to refund
-anything -- wrong transaction, wrong amount, hallucinated order. This library
-adds one safe step before your existing refund call so the agent can only refund
-what your policy allows.
+> **New here?** Read [docs/STEP_BY_STEP.md](docs/STEP_BY_STEP.md) first, then come back for details.
 
-## How it works
+---
 
-Your app loads the real order. This library wraps your refund function with
-policy checks. The agent gets a callable that can only refund that order.
+## Read this first (1 minute)
 
+| Question | Answer |
+|----------|--------|
+| Is this a hosted API or SaaS? | **No.** It is a **package** you install (`pip` / `npm`) in **your** server code. |
+| Does it run on my phone? | **Not inside the app.** Your mobile app calls **your backend**; the backend runs this library. |
+| Do I need Python *and* TypeScript? | **No.** Pick **one** — whatever your backend uses. |
+| What does it actually do? | Wraps **your** existing Stripe (or other) refund call with **policy checks** before money moves. |
+
+---
+
+## The idea in one picture
+
+```text
+Your database loads the real order (SKU, txn id, amount, date)
+        │
+        ▼
+  refund-guard: make_refund_tool(...)   ← closes over that order
+        │
+        ▼
+  Agent / user only chooses HOW MUCH to refund (within rules)
+        │
+        ▼
+  validate → then your Stripe/refund code runs
 ```
-Your DB (real order) + Your policy (YAML) + Your refund fn (Stripe/etc.)
-                           |
-                    refunds.make_refund_tool(...)
-                           |
-                     refund_tool(amount)  <-- agent calls this
-                           |
-              validate --> call your fn --> log result
-```
 
-The agent never supplies transaction IDs, amounts, or SKUs.
-Everything comes from your app.
+The agent should **not** pass transaction IDs or “what was paid” — your app does.
 
-## Quickstart
+---
 
-### Install
+## Install
 
 **Python (PyPI)**
 
@@ -41,11 +50,15 @@ pip install refund-guard
 npm install @mattmessinger/refund-guard
 ```
 
-Both implementations follow the **same** behavioral contract. Shared JSON fixtures in [`contracts/parity/cases.json`](contracts/parity/cases.json) are run in CI for Python and TypeScript so the two packages do not drift. See [RELEASING.md](RELEASING.md).
+Both implementations follow the **same** behavior. Shared tests live in [`contracts/parity/cases.json`](contracts/parity/cases.json). Publishing both under one version line is described in [RELEASING.md](RELEASING.md).
 
-### Define your refund policy
+---
 
-Create `refund_policy.yaml`:
+## Tutorial (5 minutes)
+
+### 1. Create a policy file
+
+`refund_policy.yaml`:
 
 ```yaml
 skus:
@@ -55,7 +68,17 @@ skus:
     refund_window_days: 30
 ```
 
-### Use it (Python)
+### 2. Implement your refund (you already have this)
+
+This is whatever you use today to hit Stripe / PayPal / your API.
+
+### 3. Wire refund-guard
+
+Pick **one** path below.
+
+---
+
+### Python (full example)
 
 ```python
 from datetime import datetime
@@ -63,17 +86,15 @@ from refund_guard import Refunds
 
 refunds = Refunds("refund_policy.yaml")
 
-# Your app loads the real order (NOT the agent)
-order = get_order(order_id)
+# Load order from YOUR database — not from the model
+order = get_order_from_db(order_id)
 
-# Your existing refund function
-def my_stripe_refund(amount, transaction_id, currency):
+def my_stripe_refund(amount: float, transaction_id: str, currency: str):
     return stripe.Refund.create(
         payment_intent=transaction_id,
         amount=int(amount * 100),
     )
 
-# Turn it into a safe tool
 refund_tool = refunds.make_refund_tool(
     sku=order.sku,
     transaction_id=order.transaction_id,
@@ -82,17 +103,23 @@ refund_tool = refunds.make_refund_tool(
     provider_refund_fn=my_stripe_refund,
 )
 
-# This is all the agent gets
+# Only this callable is exposed to the agent / tool layer
 result = refund_tool(80.00)
+print(result)
 ```
 
-### Use it (TypeScript)
+---
+
+### TypeScript (full example)
+
+Put this in an **async** route or handler (Express, Next.js API route, etc.):
 
 ```typescript
 import { Refunds } from "@mattmessinger/refund-guard";
 
 const refunds = new Refunds("refund_policy.yaml");
-// In an async function or route handler:
+
+const order = await loadOrderFromDb(orderId); // your code
 
 const refund = refunds.makeRefundTool({
   sku: order.sku,
@@ -108,106 +135,92 @@ const refund = refunds.makeRefundTool({
 });
 
 const result = await refund(80.0);
+console.log(result);
 ```
 
-The callable is **async** so `providerRefundFn` may return a Promise (e.g. Stripe’s Node client). Sync functions work too.
+- The returned function is **async** — use `await`.
+- `providerRefundFn` may return a **Promise** (Stripe’s Node client) or a plain value.
 
-Optional `nowFn` (and in Python `now_fn`) is available for **deterministic tests**; production code can omit it (defaults to current UTC time).
+**Tests only:** you can pass `nowFn` (Python: `now_fn`) to freeze “today” for deterministic tests. Omit in production.
 
-### What comes back
+---
 
-Approved:
+## What you get back
 
-```python
+**Approved**
+
+```json
 {"status": "approved", "refunded_amount": 80.0, "transaction_id": "pi_abc123"}
 ```
 
-Denied:
+**Denied** (policy blocked — your refund function was **not** called)
 
-```python
+```json
 {"status": "denied", "reason": "amount_exceeds_limit", "requested": 200.0, "max_allowed": 120.0}
 ```
 
-Provider error:
+**Provider error** (Stripe threw, etc.)
 
-```python
+```json
 {"status": "error", "reason": "provider_error", "detail": "No such payment_intent: pi_xxx"}
 ```
 
-## What it checks
+---
 
-Every call to `refund_tool(amount)` validates four things, in order:
+## What it checks (in order)
 
-1. **Refund window** -- is the order still within the allowed refund period?
-2. **Positive amount** -- is the requested amount greater than zero?
-3. **Amount cap** -- does the amount exceed what was actually paid?
-4. **Remaining balance** -- has this order already been partially refunded past the limit?
+1. **Refund window** — still within `refund_window_days` for that SKU  
+2. **Positive amount** — must be &gt; 0  
+3. **Amount cap** — cannot exceed what was paid on this order  
+4. **Remaining balance** — after partial refunds, cannot exceed what’s left  
 
-If any check fails, your refund function is never called.
+If any check fails, **your provider function is never called.**
 
-## Security model
+---
+
+## Troubleshooting
+
+| Symptom | What to do |
+|---------|------------|
+| `SKU 'x' not found in policy` | Add that SKU under `skus:` in your YAML, or fix the SKU string from your DB. |
+| TypeScript: `Cannot find module` | Run `npm install @mattmessinger/refund-guard` in **your** project folder (where `package.json` lives). |
+| TypeScript: forgot `await` | The refund callable is **async** — use `const r = await refund(10)`. |
+| Policy file not found | Pass an **absolute path** to `Refunds("C:/path/to/refund_policy.yaml")` or run your server from the directory that contains the file. |
+| Denied: `refund_window_expired` | Expected if the purchase is too old for that SKU’s window. |
+| Works on my laptop but not in production | Check the policy file is deployed with the app and paths match. |
+
+---
+
+## Security model (short)
 
 | Layer | Role |
 |-------|------|
-| Stripe / PayPal / Shopify | Source of truth for payments |
-| Your app | Source of truth for orders and SKUs |
-| Agent | Untrusted |
+| Stripe / PayPal / Shopify | Money + payment truth |
+| **Your app** | Order truth (SKU, ids, amounts, dates) |
+| **Agent / chat** | Untrusted — only chooses refund amount inside the tool |
 
-The agent never supplies transaction IDs, SKUs, or payment amounts.
-`make_refund_tool()` closes over the real order data your app provided.
-The agent only controls how much to refund, within your limits.
+---
 
-## How this differs from generic agent guardrails
+## How this differs from “agent guardrail” products
 
-Tools like [Veto](https://veto.so/), [PolicyLayer](https://policylayer.com/),
-and [Kvlar](https://github.com/nichochar/kvlar) operate at the **tool-call level** --
-they rate-limit, allowlist, or route to human approval. They answer
-"can this agent call `create_refund` right now?"
+Tools like [Veto](https://veto.so/), [PolicyLayer](https://policylayer.com/), or [Kvlar](https://github.com/nichochar/kvlar) often answer: *should this tool run at all?*
 
-refund-guard operates at the **business-logic level**. It answers
-"can this agent refund *this order* for *this amount*?" None of the
-generic guardrails can enforce that a refund amount must be less than
-what was actually paid on a specific transaction, or that this SKU's
-refund window has expired.
+**refund-guard** answers: *for **this** order and **this** amount, does our **business policy** allow it?*  
+Use both if you want: one for coarse control, this for refund math and windows.
 
-They're complementary. Use a generic guardrail for broad tool governance.
-Use refund-guard for refund-specific business logic.
+---
 
-## Works with anything
+## Works with any provider function
 
-This sits right before whatever refund call you already have:
+Same signature everywhere:
 
-```python
-# Stripe
-def my_refund(amount, transaction_id, currency):
-    return stripe.Refund.create(
-        payment_intent=transaction_id,
-        amount=int(amount * 100),
-    )
+`provider_refund_fn(amount, transaction_id, currency)`
 
-# PayPal
-def my_refund(amount, transaction_id, currency):
-    return paypal.captures.refund(
-        transaction_id,
-        {"amount": {"value": str(amount), "currency_code": currency.upper()}},
-    )
+Examples: Stripe, PayPal, Shopify, your own HTTP API.
 
-# Shopify, your own backend, anything
-def my_refund(amount, transaction_id, currency):
-    return requests.post(
-        f"{API}/refunds",
-        json={"txn": transaction_id, "amount": amount},
-    )
-```
+---
 
-Pass any of these as `provider_refund_fn`.
-The signature is always `(amount: float, transaction_id: str, currency: str) -> Any`.
-
-## Logging
-
-Every attempt is logged via Python's standard `logging` module under
-the logger name `refund_guard`. Configure it however you already
-handle logging:
+## Logging (Python)
 
 ```python
 import logging
@@ -215,37 +228,45 @@ logging.basicConfig()
 logging.getLogger("refund_guard").setLevel(logging.INFO)
 ```
 
-Each refund attempt emits a JSON-structured log line:
+Logs go to the `refund_guard` logger (JSON-friendly lines).
 
-```json
-{"transaction_id": "pi_abc123", "sku": "digital_course", "requested_amount": 200, "status": "denied", "reason": "amount_exceeds_limit"}
+---
+
+## Develop / clone this repo
+
+```bash
+git clone https://github.com/MattMessinger1/agentic_refund_guardrail.git
+cd agentic_refund_guardrail
+
+# Python tests
+pip install -e ".[dev]"
+pytest
+
+# TypeScript tests
+cd packages/refund-guard-ts
+npm ci
+npm test
 ```
+
+CI runs both; see [.github/workflows/ci.yml](.github/workflows/ci.yml).
+
+---
 
 ## FAQ
 
-**Why not just trust the agent?**
+**Why not trust the agent with Stripe IDs?**  
+Models mix up amounts and ids. This library binds the tool to **one** order your server loaded.
 
-Agents can hallucinate transaction IDs, retry with wrong amounts, or
-confuse one customer's order with another. This ensures refunds are
-always grounded in real data.
+**Does this replace Stripe?**  
+No. It sits **in front of** your existing refund code.
 
-**Why not use Stripe metadata or webhooks?**
+**Why Python and TypeScript in one repo?**  
+So pip users and npm users get the **same behavior** — locked by shared tests, not by vibes.
 
-Metadata is informational, not a control layer. Webhooks tell you what
-happened after the fact. This prevents bad refunds before they happen.
+**Where do I ask questions?**  
+[GitHub Issues](https://github.com/MattMessinger1/agentic_refund_guardrail/issues).
 
-**Does this replace Stripe / Shopify / PayPal?**
-
-No. It adds one validation step before them. Your existing refund code
-stays exactly the same.
-
-**How big is this?**
-
-Small surface area: Python depends on PyYAML; TypeScript depends on `yaml` for file loading. Validation logic is duplicated only in the sense of two hand-maintained ports — **behavior** is locked by shared parity tests, not by copy-paste trust.
-
-**Why two languages in one repo?**
-
-Runtimes are **MECE**: you install via **pip** *or* **npm**, not both in one process. Semantics stay **one version line**: same semver on PyPI and npm, same fixture file, dual CI (see [RELEASING.md](RELEASING.md)).
+---
 
 ## License
 

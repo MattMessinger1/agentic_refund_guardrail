@@ -2,57 +2,50 @@
 
 ## Title
 
-Show HN: Refund Guard -- scope AI agent refunds to real orders and policies
+Show HN: Turn a real order into a safe refund tool for your AI agent
 
 ## Body
 
 If your AI agent can call `stripe.Refund.create()`, it can try to refund
 anything -- wrong transaction, wrong amount, hallucinated order.
 
-Refund Guard is a small Python library that adds one step before your existing
-refund call. You load a real order from your DB, wrap your refund function, and
-hand the agent a scoped tool that can only refund *that* order, within *your*
-policy.
+This is a small self-hosted library (Python + TypeScript) that adds one step
+before your existing refund call:
+
+- Your app loads the real order from your DB
+- refund-guard turns that order into a scoped refund tool
+- The agent only gets that tool
 
 ```python
 from refund_guard import Refunds
 
-refunds = Refunds("refund_policy.yaml")
+refunds = Refunds({"skus": {"shampoo": {"refund_window_days": 30}}})
 
-# Your app loads the real order (not the agent)
-order = get_order(order_id)
+order = get_order(order_id)  # your DB, not the agent
 
-# Turn it into a safe refund tool
 refund_tool = refunds.make_refund_tool(
     sku=order.sku,
     transaction_id=order.transaction_id,
-    amount_paid=order.amount_paid,
+    amount_paid_minor_units=order.amount_cents,
     purchased_at=order.purchased_at,
-    provider_refund_fn=my_stripe_refund,
+    refunded_at=order.refunded_at,
+    provider_refund_fn=my_refund,
 )
 
-# This is all the agent gets
-refund_tool(80.00)
+result = refund_tool(80.00)
 ```
 
-What happens:
+What it checks before your provider function runs:
 
-- Refund must match a real transaction (your app loaded it, not the agent)
-- Amount is capped at what was actually paid
-- Partial refunds are tracked (can't refund $60 twice on a $100 order)
-- Refund window is enforced per SKU
-- Every attempt is logged
-- If it fails validation, the provider function is never called
+- Already-refunded orders (via `refunded_at`)
+- Refund window for that SKU
+- Amount is positive
+- Amount does not exceed what was paid
+- Remaining balance after partial refunds
 
-The policy file is just:
-
-```yaml
-skus:
-  digital_course:
-    refund_window_days: 7
-  shampoo:
-    refund_window_days: 30
-```
+So instead of trusting agent-supplied transaction IDs or amounts, you derive
+everything from real order data and only let the agent choose the refund amount
+inside those bounds.
 
 **How this differs from generic agent guardrails:**
 
@@ -71,5 +64,6 @@ Works with Stripe, PayPal, Shopify, or anything -- you supply the refund
 function, we just gate it.
 
 Self-hosted, ~200 lines, one dependency (pyyaml). No API keys leave your system.
+Also ships as a TypeScript/npm package with identical behavior.
 
 Repo: https://github.com/MattMessinger1/agentic_refund_guardrail

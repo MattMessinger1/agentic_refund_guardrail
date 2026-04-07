@@ -2,7 +2,7 @@
 
 The repo already includes CI (`.github/workflows/ci.yml`), issue templates, and `CONTRIBUTING.md`. A few things must be toggled **in the GitHub web UI** (this file cannot set them for you).
 
-**Publishing PyPI/npm and tokens:** see [MANUAL_STEPS.md](MANUAL_STEPS.md).
+**Publishing PyPI/npm and tokens:** see [MANUAL_STEPS.md](MANUAL_STEPS.md) (same directory).
 
 ## Repository “About”
 
@@ -24,4 +24,4 @@ On the repo home page, click **⚙️** next to **About**.
 
 ## Releases
 
-When you publish to **PyPI** and **npm**, create a **GitHub Release** with the same tag as `pyproject.toml` / `package.json` (e.g. `v0.1.0`). See [RELEASING.md](../RELEASING.md).
+When you publish to **PyPI** and **npm**, create a **GitHub Release** with the same tag as `pyproject.toml` / `package.json` (e.g. `v0.1.0`). See [RELEASING.md](RELEASING.md).

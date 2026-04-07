@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Check [docs/STEP_BY_STEP.md](https://github.com/MattMessinger1/agentic_refund_guardrail/blob/main/docs/STEP_BY_STEP.md) first — it covers the happy path.
+        Check the [README quickstart](https://github.com/MattMessinger1/agentic_refund_guardrail#quickstart) first — it covers the happy path.
   - type: textarea
     id: question
     attributes:

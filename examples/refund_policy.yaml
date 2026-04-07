@@ -1,9 +1,0 @@
-skus:
-  digital_course:
-    refund_window_days: 7
-
-  shampoo:
-    refund_window_days: 30
-
-  annual_subscription:
-    refund_window_days: 14

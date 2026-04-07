@@ -1,6 +1,6 @@
 {
   "name": "@mattmessinger/refund-guard",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "TypeScript port of refund-guard — same behavior as the Python package (shared parity fixtures).",
   "type": "module",
   "main": "./dist/index.js",
@@ -12,7 +12,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md"
   ],
   "scripts": {
     "build": "tsc",

@@ -20,11 +20,20 @@ Before tagging:
 
 Edits to refund logic must update [contracts/parity/cases.json](contracts/parity/cases.json) when behavior changes.
 
-## PyPI
+## Automated publishing (preferred)
 
-**Preferred:** GitHub Actions **Publish to PyPI** (`.github/workflows/publish-pypi.yml`) after you [register trusted publishing once](docs/PYPI_FIRST_TIME.md). Triggers on **release published** or **workflow_dispatch**.
+Both workflows trigger on **GitHub Release published** or **workflow_dispatch**:
 
-**Manual (API token on your machine):**
+| Package | Workflow | Setup |
+|---------|----------|-------|
+| PyPI (`refund-guard`) | `.github/workflows/publish-pypi.yml` | [Trusted publishing](docs/PYPI_FIRST_TIME.md) (OIDC, no token needed) |
+| npm (`@mattmessinger/refund-guard`) | `.github/workflows/publish-npm.yml` | `NPM_TOKEN` repo secret |
+
+**To release:** bump versions in `pyproject.toml` and `packages/refund-guard-ts/package.json`, merge to main, create a GitHub Release with the version tag (e.g. `v0.2.0`).
+
+## Manual publishing (fallback)
+
+**PyPI:**
 
 ```bash
 python3 -m pip install build twine
@@ -32,11 +41,10 @@ python3 -m build
 python3 -m twine upload dist/*
 ```
 
-## npm
+**npm:**
 
 ```bash
 cd packages/refund-guard-ts
+npm run build
 npm publish --access public
 ```
-
-(Use your npm org/login as appropriate.)

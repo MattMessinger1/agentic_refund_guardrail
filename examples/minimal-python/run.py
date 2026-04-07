@@ -39,11 +39,11 @@ def main() -> None:
         provider_refund_fn=fake_provider_refund,
     )
 
-    print("1) Partial refund $25 (should approve):")
-    print(tool(25.00))
+    print("1) Full refund, no amount (should approve $100):")
+    print(tool())
 
-    print("\n2) Try to refund $999 (should deny — over remaining):")
-    print(tool(999.00))
+    print("\n2) Another full refund (should deny — already refunded):")
+    print(tool())
 
 
 if __name__ == "__main__":

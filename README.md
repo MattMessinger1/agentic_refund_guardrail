@@ -9,6 +9,14 @@ If your AI agent can call `stripe.Refund.create()`, it can try to refund anythin
 
 **refund-guard** adds one step: load a real order from your database, create a scoped refund tool, and give that tool to the agent. The agent can only refund *that order*, within *your rules*.
 
+## Who this is for
+
+This library is for developers building AI agents -- chatbots, MCP servers, tool-calling LLMs -- that can trigger refunds. If your agent has a "refund" tool, this library makes that tool safe. Works with any payment provider: Stripe, PayPal, Shopify, or a custom backend.
+
+Payment providers protect against *technically* invalid refunds (can't refund more than the charge, can't double-refund a payment intent). But they have no concept of *your* business rules: which products are refundable, how long the refund window is, or whether this particular order should be refunded at all. Without this library, your agent supplies the transaction ID and amount directly. With it, your server loads the real order, creates a scoped tool, and the agent can only operate inside your policy.
+
+The library is most powerful when you have multiple SKUs with different refund windows, partial refunds, or a custom payment backend with no built-in guardrails. But even for simple single-product full-refund flows, the refund window enforcement and structured denial reasons don't exist anywhere else in the stack.
+
 ## Install
 
 ```bash

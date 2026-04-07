@@ -4,6 +4,18 @@ All notable changes to **refund-guard** are tracked here. Version numbers apply 
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-04-07
+
+### Added
+
+- **Full refund mode**: call `refund_tool()` / `await refund()` with no amount to refund the full remaining balance (`amount_paid - total_refunded`). Eliminates manual cent-to-dollar conversion for the common full-refund case.
+- 3 new parity test cases (20 total): full refund with no arg, remaining-after-partial with no arg, exhausted-balance with no arg.
+
+### Changed
+
+- `providerRefundFn` examples now show the amount being forwarded to the payment API. Previous examples used `_amount` (underscore = ignored), which made amount validation ineffective.
+- Added warning in README, Integration Guide, and handler example: if your provider function ignores the `amount` parameter, amount checks are meaningless.
+
 ## [0.2.1] — 2026-04-07
 
 ### Changed
@@ -70,7 +82,8 @@ All notable changes to **refund-guard** are tracked here. Version numbers apply 
 - Documentation: README, STEP_BY_STEP, CONTRIBUTING, SECURITY.
 - GitHub Actions CI for pytest + npm test/build.
 
-[Unreleased]: https://github.com/MattMessinger1/agentic_refund_guardrail/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/MattMessinger1/agentic_refund_guardrail/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/MattMessinger1/agentic_refund_guardrail/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/MattMessinger1/agentic_refund_guardrail/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/MattMessinger1/agentic_refund_guardrail/compare/v0.1.2...v0.2.0
 [0.1.2]: https://github.com/MattMessinger1/agentic_refund_guardrail/compare/v0.1.1...v0.1.2

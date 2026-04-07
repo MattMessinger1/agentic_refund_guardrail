@@ -22,8 +22,6 @@ const refundGuard = new Refunds({
 
 export async function handleRefund(chargeId: string, reason: string) {
   // ─── 2a. Fetch order data from YOUR database ────────────────────
-  //
-  // The library never queries your DB. You provide the fields it needs.
 
   const charge = await db.charges.findUnique({
     where: { id: chargeId },
@@ -42,8 +40,12 @@ export async function handleRefund(chargeId: string, reason: string) {
 
   // ─── 2b. Create the guarded refund tool ─────────────────────────
   //
-  // amountPaidMinorUnits: pass cents directly — library divides by 100
-  // refundedAt: pass your DB's refund timestamp — library blocks double-refunds
+  // amountPaidMinorUnits: pass cents directly -- library divides by 100
+  // refundedAt: pass your DB's refund timestamp -- library blocks double-refunds
+  //
+  // IMPORTANT: providerRefundFn receives the validated amount from the guard.
+  // Always forward it to your payment API. If you ignore it, the guard's
+  // amount validation provides no protection.
 
   const refund = refundGuard.makeRefundTool({
     sku: "success_fee",
@@ -52,17 +54,20 @@ export async function handleRefund(chargeId: string, reason: string) {
     purchasedAt: new Date(charge.charged_at),
     refundedAt: charge.refunded_at ? new Date(charge.refunded_at) : null,
     provider: "stripe",
-    providerRefundFn: async (_amount, _txnId, _currency) => {
-      const result = await yourRefundFunction(chargeId, reason);
+    providerRefundFn: async (amount, txnId, currency) => {
+      const amountCents = Math.round(amount * 100);
+      const result = await yourRefundFunction(chargeId, amountCents, reason);
       if (!result.success) throw new Error(result.error);
       return result;
     },
   });
 
   // ─── 2c. Call and map results ───────────────────────────────────
+  //
+  // No argument = full refund of the remaining balance.
+  // Pass an amount for partial refunds: await refund(50.00)
 
-  const amountDollars = charge.amount_cents / 100;
-  const result = await refund(amountDollars);
+  const result = await refund();
 
   if (result.status === "denied" || result.status === "error") {
     return {
@@ -84,5 +89,6 @@ export async function handleRefund(chargeId: string, reason: string) {
 declare const db: any;
 declare function yourRefundFunction(
   chargeId: string,
+  amountCents: number,
   reason: string,
 ): Promise<{ success: boolean; error?: string; refund_id?: string }>;

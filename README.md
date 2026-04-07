@@ -34,12 +34,13 @@ refund_tool = refunds.make_refund_tool(
     provider_refund_fn=my_existing_refund_fn,     # your Stripe / PayPal / Shopify call
 )
 
-result = refund_tool(80.00)
-# {"status": "approved", "refunded_amount": 80.0, ...}
+result = refund_tool()      # full refund (no amount needed)
+result = refund_tool(50)    # or partial refund
+# {"status": "approved", "refunded_amount": 100.0, ...}
 # {"status": "denied", "reason": "refund_window_expired", ...}
 ```
 
-That's it. Your provider function is only called if every check passes.
+That's it. Call with no argument for a full refund, or pass an amount for a partial refund. Your provider function is only called if every check passes.
 
 ## What it checks (before your refund function runs)
 
@@ -68,7 +69,7 @@ const refund = refunds.makeRefundTool({
   providerRefundFn: myExistingRefundFn,
 });
 
-const result = await refund(80.0);  // async -- use await
+const result = await refund();       // full refund -- or refund(50) for partial
 const message = DENIAL_MESSAGES[result.reason as string] ?? "Refund processed.";
 ```
 
@@ -99,6 +100,15 @@ Both implementations follow the **same** behavior, enforced by [shared parity te
 | `provider` | `string` | no | `"unknown"` |
 
 Provide **one** of `amount_paid` (dollars) or `amount_paid_minor_units` (cents -- divided by 100 internally). Providing both raises an error.
+
+### The refund callable: `refund_tool(amount?)` / `await refund(amount?)`
+
+| Call | Behavior |
+|------|----------|
+| `refund_tool()` | Full refund of the remaining balance (`amount_paid - total_refunded`) |
+| `refund_tool(50)` | Partial refund of $50 |
+
+> **Important:** The library passes the validated amount to your `provider_refund_fn`. If your provider function ignores the amount parameter, the amount checks provide no protection. Always forward the amount to your payment API.
 
 ### `DENIAL_MESSAGES`
 
@@ -131,7 +141,8 @@ A dict / `Record<string, string>` mapping every denial reason to a user-facing m
 | Every refund denied as `amount_exceeds_limit` | You're passing cents to `amount_paid`. Use `amount_paid_minor_units` instead. |
 | Every refund denied as `already_refunded` | You're passing a non-null `refunded_at`. This order is already refunded in your DB. |
 | `SKU 'x' not found in policy` | Add that SKU to your policy object or YAML file. |
-| Forgot `await` (TypeScript) | The callable is async: `const r = await refund(10)`. |
+| Forgot `await` (TypeScript) | The callable is async: `const r = await refund()`. |
+| Refunds go through but amount is wrong | Your `providerRefundFn` must forward the `amount` parameter to your payment API. |
 
 ---
 
@@ -153,7 +164,7 @@ No. Pick whichever your backend uses.
 Pass `refunded_at` from your database. The library denies immediately if it's set. If you don't pass it, you need to check it yourself.
 
 **What data does the agent control?**
-Only the refund amount. SKU, transaction ID, amount paid, and purchase date all come from your database -- never from the agent.
+The refund amount (or nothing at all -- call with no argument for a full refund). SKU, transaction ID, amount paid, and purchase date all come from your database -- never from the agent.
 
 **Is this safe?**
 The agent is untrusted. Your app provides order truth (SKU, IDs, amounts, dates). Your payment provider handles money. The agent only chooses how much to refund, inside the bounds you set.
@@ -177,7 +188,7 @@ Read the [Integration Guide](docs/INTEGRATION_GUIDE.md) -- a walkthrough based o
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, tests, and PR guidelines.
 
-Both languages run the **same 17 test scenarios** from [`contracts/parity/cases.json`](contracts/parity/cases.json). If you change behavior in one language, the shared tests catch the drift.
+Both languages run the **same 20 test scenarios** from [`contracts/parity/cases.json`](contracts/parity/cases.json). If you change behavior in one language, the shared tests catch the drift.
 
 ---
 

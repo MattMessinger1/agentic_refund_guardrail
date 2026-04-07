@@ -46,7 +46,7 @@ def test_shared_parity_fixtures_match_python():
 
     assert cases_doc["version"] == 1
     tests = cases_doc["tests"]
-    assert len(tests) == 17
+    assert len(tests) == 20
 
     for case in tests:
         clock = _parse_iso(case["clock_now"])
@@ -87,7 +87,8 @@ def test_shared_parity_fixtures_match_python():
             mode = step["provider"]
             tool._provider_refund_fn = _make_provider(mode, calls)  # type: ignore[attr-defined]
 
-            result = tool(float(step["amount"]))
+            step_amount = step["amount"]
+            result = tool() if step_amount is None else tool(float(step_amount))
             exp = step["expect"]
             _assert_subset(exp, result)
 

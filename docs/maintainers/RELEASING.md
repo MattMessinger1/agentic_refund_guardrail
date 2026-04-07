@@ -1,6 +1,6 @@
 # Releasing refund-guard (Python + TypeScript)
 
-> **End users:** see the main [README](README.md) and [docs/STEP_BY_STEP.md](docs/STEP_BY_STEP.md). This file is for **publishing** new versions.
+> **End users:** see the main [README](../../README.md). This file is for maintainers **publishing** new versions.
 
 ## Versioning
 
@@ -26,7 +26,7 @@ Both workflows trigger on **GitHub Release published** or **workflow_dispatch**:
 
 | Package | Workflow | Setup |
 |---------|----------|-------|
-| PyPI (`refund-guard`) | `.github/workflows/publish-pypi.yml` | [Trusted publishing](docs/PYPI_FIRST_TIME.md) (OIDC, no token needed) |
+| PyPI (`refund-guard`) | `.github/workflows/publish-pypi.yml` | [Trusted publishing](PYPI_FIRST_TIME.md) (OIDC, no token needed) |
 | npm (`@mattmessinger/refund-guard`) | `.github/workflows/publish-npm.yml` | `NPM_TOKEN` repo secret |
 
 **To release:** bump versions in `pyproject.toml` and `packages/refund-guard-ts/package.json`, merge to main, create a GitHub Release with the version tag (e.g. `v0.2.0`).

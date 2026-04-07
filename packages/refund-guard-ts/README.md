@@ -35,7 +35,7 @@ The returned callable is **async**. `providerRefundFn` can return a Promise or a
 
 ## Full docs
 
-[GitHub repo](https://github.com/MattMessinger1/agentic_refund_guardrail) · [Step-by-step guide](https://github.com/MattMessinger1/agentic_refund_guardrail/blob/main/docs/STEP_BY_STEP.md) · [Integration guide](https://github.com/MattMessinger1/agentic_refund_guardrail/blob/main/docs/INTEGRATION_GUIDE.md) · [PyPI (Python)](https://pypi.org/project/refund-guard/)
+[GitHub repo](https://github.com/MattMessinger1/agentic_refund_guardrail) · [Integration guide](https://github.com/MattMessinger1/agentic_refund_guardrail/blob/main/docs/INTEGRATION_GUIDE.md) · [PyPI (Python)](https://pypi.org/project/refund-guard/)
 
 ## License
 

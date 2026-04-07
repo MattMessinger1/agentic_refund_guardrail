@@ -1,7 +1,7 @@
 blank_issues_enabled: true
 contact_links:
-  - name: Step-by-step guide
-    url: https://github.com/MattMessinger1/agentic_refund_guardrail/blob/main/docs/STEP_BY_STEP.md
+  - name: README / Quickstart
+    url: https://github.com/MattMessinger1/agentic_refund_guardrail#quickstart
     about: New to the library — start here.
   - name: Contributing
     url: https://github.com/MattMessinger1/agentic_refund_guardrail/blob/main/CONTRIBUTING.md

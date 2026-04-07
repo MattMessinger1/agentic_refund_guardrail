@@ -4,6 +4,18 @@ All notable changes to **refund-guard** are tracked here. Version numbers apply 
 
 ## [Unreleased]
 
+## [0.2.1] — 2026-04-07
+
+### Changed
+
+- **README rewrite**: sharp hook and quickstart visible within 20 lines; API reference, denial reasons, and troubleshooting pushed below the fold; bottom-half sections (security model, "what this doesn't do", logging) folded into a single FAQ.
+- Deleted `docs/STEP_BY_STEP.md` — the README is now the single entry point.
+- Moved maintainer docs (`RELEASING`, `GITHUB_SETUP`, `MANUAL_STEPS`, `PYPI_FIRST_TIME`) into `docs/maintainers/`.
+- Deleted stale `examples/stripe_example.py` (called real Stripe, used pre-0.2.0 API) and orphaned `examples/refund_policy.yaml`.
+- Deleted redundant `contracts/README.md`.
+- Updated HN post draft and `examples/real-world-ts/README.md` for 0.2.0 API.
+- Slimmed `docs/INTEGRATION_GUIDE.md` (removed "Understand the data you need" table, already in README).
+
 ## [0.2.0] — 2026-04-07
 
 ### Added
@@ -58,7 +70,8 @@ All notable changes to **refund-guard** are tracked here. Version numbers apply 
 - Documentation: README, STEP_BY_STEP, CONTRIBUTING, SECURITY.
 - GitHub Actions CI for pytest + npm test/build.
 
-[Unreleased]: https://github.com/MattMessinger1/agentic_refund_guardrail/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/MattMessinger1/agentic_refund_guardrail/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/MattMessinger1/agentic_refund_guardrail/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/MattMessinger1/agentic_refund_guardrail/compare/v0.1.2...v0.2.0
 [0.1.2]: https://github.com/MattMessinger1/agentic_refund_guardrail/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/MattMessinger1/agentic_refund_guardrail/compare/v0.1.0...v0.1.1

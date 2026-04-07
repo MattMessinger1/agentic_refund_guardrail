@@ -8,21 +8,7 @@ If you just want to see the library run, start with the [toy examples](../exampl
 
 ## Before you start
 
-### Audit all refund paths
-
 Grep your codebase for every place that triggers a refund (e.g. `stripe.refunds.create`, `refund`, your edge function name). We found **two** separate code paths in our app and almost missed one. Every path needs the guard -- one unguarded path defeats the purpose.
-
-### Understand the data you need
-
-For each refund call, your database must provide:
-
-| Field | Example | Why |
-|-------|---------|-----|
-| SKU / product type | `"success_fee"` | Selects the right policy (refund window) |
-| Transaction ID | `"pi_abc123"` | Passed to your provider; included in results |
-| Amount paid | `2000` (minor units) or `20.00` (major units) | Sets the maximum refundable amount |
-| Purchase date | `2026-03-15T12:00:00Z` | Determines if the refund window is still open |
-| Refunded flag | `refunded_at` column | Pass to the library -- blocks double-refunds |
 
 ---
 

@@ -38,11 +38,11 @@ async function main(): Promise<void> {
     providerRefundFn: fakeProvider,
   });
 
-  console.log("1) Partial refund $25 (should approve):");
-  console.log(await refund(25));
+  console.log("1) Full refund, no amount (should approve $100):");
+  console.log(await refund());
 
-  console.log("\n2) Try to refund $999 (should deny):");
-  console.log(await refund(999));
+  console.log("\n2) Another full refund (should deny — already refunded):");
+  console.log(await refund());
 }
 
 main().catch((e) => {

@@ -28,7 +28,7 @@ const refund = refunds.makeRefundTool({
 const result = await refund();       // full refund -- or refund(50) for partial
 // { status: "approved", refunded_amount: 80, ... }
 // { status: "denied", reason: "already_refunded", ... }
-const message = DENIAL_MESSAGES[result.reason as string];
+const message = DENIAL_MESSAGES[result.reason as string] ?? "Refund could not be processed.";
 ```
 
 The returned callable is **async**. Call with no argument for a full refund, or pass an amount for a partial refund. `providerRefundFn` can return a Promise or a plain value.

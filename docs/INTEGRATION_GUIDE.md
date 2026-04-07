@@ -20,9 +20,9 @@ For each refund call, your database must provide:
 |-------|---------|-----|
 | SKU / product type | `"success_fee"` | Selects the right policy (refund window) |
 | Transaction ID | `"pi_abc123"` | Passed to your provider; included in results |
-| Amount paid | `20.00` (major units, not minor units) | Sets the maximum refundable amount |
+| Amount paid | `2000` (minor units) or `20.00` (major units) | Sets the maximum refundable amount |
 | Purchase date | `2026-03-15T12:00:00Z` | Determines if the refund window is still open |
-| Refunded flag | `refunded_at` column | **You** check this — see below |
+| Refunded flag | `refunded_at` column | Pass to the library — blocks double-refunds |
 
 ---
 
@@ -42,33 +42,21 @@ The exact query depends on your ORM (Prisma, Drizzle, raw SQL, Supabase, etc.) �
 
 ---
 
-## Step 2 — Check `refunded_at` yourself
+## Step 2 — Pass `refunded_at`
 
-The library tracks partial refunds **within a single `makeRefundTool` instance** (one request lifecycle). It does **not** know about refunds from previous requests. Your database is the source of truth for double-refund prevention:
+Pass your database's refund flag directly. If the order was already refunded, the library returns `{ status: "denied", reason: "already_refunded" }` without calling your provider.
 
 ```typescript
-if (charge.refunded_at) {
-  return { error: "Already refunded" };
-}
+refundedAt: charge.refunded_at ? new Date(charge.refunded_at) : null,
 ```
 
-Why can't the library do this? Because it's stateless across HTTP requests — `totalRefunded` resets to 0 every time you call `makeRefundTool`. That's by design (no database dependency), but it means **you** own the cross-request guard.
+This replaces the manual `if (charge.refunded_at) return ...` pattern. If you prefer checking yourself, omit `refundedAt` — the library treats it as `null` by default.
 
 ---
 
-## Step 3 — Convert units
+## Step 3 — Create the guard and wrap your provider
 
-Most payment APIs store amounts in **minor units** (cents, pence, etc.). refund-guard works in **major units** (dollars, euros, pounds).
-
-```typescript
-const amountDollars = charge.amount_cents / 100;
-```
-
-If you skip this, a $20.00 charge becomes `amountPaid: 2000` and every real refund will be denied as `amount_exceeds_limit`.
-
----
-
-## Step 4 — Create the guard and wrap your provider
+Use `amountPaidMinorUnits` to pass cents directly — the library divides by 100 internally.
 
 Your `providerRefundFn` does **not** have to call Stripe directly. In our case, it called a Supabase Edge Function that internally calls Stripe. The only requirement is the signature: `(amount, transactionId, currency) => result`.
 
@@ -84,8 +72,9 @@ const refundGuard = new Refunds({
 const refund = refundGuard.makeRefundTool({
   sku: "success_fee",
   transactionId: charge.stripe_payment_intent,
-  amountPaid: amountDollars,
+  amountPaidMinorUnits: charge.amount_cents,
   purchasedAt: new Date(charge.charged_at),
+  refundedAt: charge.refunded_at ? new Date(charge.refunded_at) : null,
   provider: "stripe",
   providerRefundFn: async (_amount, _txnId, _currency) => {
     const { data, error } = await supabase.functions.invoke(
@@ -102,29 +91,20 @@ Note: we ignore the `_amount`, `_txnId`, `_currency` params in our wrapper becau
 
 ---
 
-## Step 5 — Call and map results
+## Step 3b — Map results
 
 ```typescript
+import { DENIAL_MESSAGES } from "@mattmessinger/refund-guard";
+
 const result = await refund(amountDollars);
 
-if (result.status === "denied") {
-  const messages: Record<string, string> = {
-    refund_window_expired: "The refund window has expired.",
-    amount_exceeds_limit: "Refund exceeds the original charge.",
-    amount_exceeds_remaining: "Already partially refunded.",
-    invalid_amount: "Invalid refund amount.",
-  };
+if (result.status === "denied" || result.status === "error") {
   return {
     success: false,
-    message: messages[result.reason as string] ?? "Refund not allowed.",
+    message: DENIAL_MESSAGES[result.reason as string] ?? "Refund not allowed.",
   };
 }
 
-if (result.status === "error") {
-  return { success: false, message: "Refund failed. Contact support." };
-}
-
-// status === "approved"
 const providerData = result.provider_result as Record<string, unknown>;
 return {
   success: true,
@@ -137,7 +117,7 @@ See the [denial reason glossary](../README.md#denial-reasons) for all codes.
 
 ---
 
-## Step 6 — Update your AI agent's system prompt
+## Step 4 — Update your AI agent's system prompt
 
 The library enforces **hard limits** (window, amount, balance). Your AI agent needs **soft guidance** about when to offer refunds in the first place.
 
@@ -164,8 +144,8 @@ The library handles "can this refund happen?" The prompt handles "should I even 
 
 | Mistake | Symptom | Fix |
 |---------|---------|-----|
-| Passing minor units instead of major units | Every refund denied as `amount_exceeds_limit` | `amount_cents / 100` |
-| Not checking `refunded_at` from DB | Double refunds possible across requests | Check before calling `makeRefundTool` |
+| Passing minor units to `amountPaid` | Every refund denied as `amount_exceeds_limit` | Use `amountPaidMinorUnits` instead |
+| Not passing `refundedAt` from DB | Double refunds possible across requests | Pass `refundedAt: charge.refunded_at` |
 | Only guarding one refund path | Unguarded path bypasses all validation | Grep for all refund calls |
 | Trusting the AI model for order data | Wrong amounts, fake transaction IDs | Always load from your database |
 | Forgetting `await` on the refund call | `result` is a Promise, not the actual result | `const result = await refund(amount)` |

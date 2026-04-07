@@ -11,22 +11,24 @@ npm install @mattmessinger/refund-guard
 ## Quick example
 
 ```typescript
-import { Refunds } from "@mattmessinger/refund-guard";
+import { Refunds, DENIAL_MESSAGES } from "@mattmessinger/refund-guard";
 
 const refunds = new Refunds({ skus: { shampoo: { refund_window_days: 30 } } });
 
 const refund = refunds.makeRefundTool({
   sku: order.sku,
   transactionId: order.transactionId,
-  amountPaid: order.amountPaid,       // major units (dollars), not minor units (cents)
+  amountPaidMinorUnits: order.amountCents,  // library divides by 100
   purchasedAt: order.purchasedAt,
+  refundedAt: order.refundedAt,             // null or Date
   providerRefundFn: (amount, transactionId, currency) =>
     yourPaymentProvider.refund({ amount, transactionId, currency }),
 });
 
 const result = await refund(80.0);
 // { status: "approved", refunded_amount: 80, ... }
-// or: { status: "denied", reason: "refund_window_expired", ... }
+// { status: "denied", reason: "already_refunded", ... }
+const message = DENIAL_MESSAGES[result.reason as string];
 ```
 
 The returned callable is **async**. `providerRefundFn` can return a Promise or a plain value.

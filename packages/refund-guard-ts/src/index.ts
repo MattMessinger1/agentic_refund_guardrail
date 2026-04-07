@@ -1,8 +1,9 @@
 import { loadPolicy, type PolicyMap, type SkuPolicy } from "./policy.js";
 import { RefundTool, type ProviderRefundFn, type RefundResult } from "./tool.js";
+import { DENIAL_MESSAGES } from "./messages.js";
 
 export type { PolicyMap, SkuPolicy, ProviderRefundFn, RefundResult };
-export { loadPolicy, RefundTool };
+export { loadPolicy, RefundTool, DENIAL_MESSAGES };
 
 export type RefundCallable = ((amount: number) => Promise<RefundResult>) & {
   tool: RefundTool;
@@ -18,12 +19,14 @@ export class Refunds {
   makeRefundTool(opts: {
     sku: string;
     transactionId: string;
-    amountPaid: number;
+    amountPaid?: number;
+    amountPaidMinorUnits?: number;
     purchasedAt: Date;
     providerRefundFn: ProviderRefundFn;
     currency?: string;
     provider?: string;
     nowFn?: () => Date;
+    refundedAt?: Date | null;
   }): RefundCallable {
     const sku = opts.sku;
     const policy = this.policies[sku];
@@ -32,16 +35,33 @@ export class Refunds {
       throw new Error(`SKU '${sku}' not found in policy. Known SKUs: ${known}`);
     }
 
+    if (opts.amountPaid != null && opts.amountPaidMinorUnits != null) {
+      throw new Error(
+        "Provide amountPaid or amountPaidMinorUnits, not both",
+      );
+    }
+    if (opts.amountPaid == null && opts.amountPaidMinorUnits == null) {
+      throw new Error(
+        "Provide either amountPaid or amountPaidMinorUnits",
+      );
+    }
+
+    const resolvedAmount =
+      opts.amountPaid != null
+        ? opts.amountPaid
+        : opts.amountPaidMinorUnits! / 100;
+
     const tool = new RefundTool({
       sku,
       transactionId: opts.transactionId,
-      amountPaid: opts.amountPaid,
+      amountPaid: resolvedAmount,
       currency: opts.currency ?? "usd",
       purchasedAt: opts.purchasedAt,
       provider: opts.provider ?? "unknown",
       providerRefundFn: opts.providerRefundFn,
       policy: policy as SkuPolicy,
       nowFn: opts.nowFn,
+      refundedAt: opts.refundedAt,
     });
 
     const fn = ((amount: number) => tool.call(amount)) as RefundCallable;

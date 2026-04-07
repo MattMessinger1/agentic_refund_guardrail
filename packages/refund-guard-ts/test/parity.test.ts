@@ -22,10 +22,13 @@ type Case = {
   clock_now: string;
   sku: string;
   transaction_id: string;
-  amount_paid: number;
+  amount_paid?: number;
+  amount_paid_minor_units?: number;
   purchased_at: string;
   purchased_at_is_naive?: boolean;
   currency?: string;
+  refunded_at?: string | null;
+  expect_construction_error?: boolean;
   steps: Step[];
 };
 
@@ -65,7 +68,7 @@ describe("parity fixtures (TypeScript)", () => {
 
   it("fixture version", () => {
     expect(doc.version).toBe(1);
-    expect(doc.tests.length).toBe(13);
+    expect(doc.tests.length).toBe(17);
   });
 
   for (const case_ of doc.tests) {
@@ -79,15 +82,35 @@ describe("parity fixtures (TypeScript)", () => {
       const calls: Array<[number, string, string]> = [];
       const refunds = new Refunds(case_.policy);
 
-      const refund = refunds.makeRefundTool({
+      const toolOpts: Record<string, unknown> = {
         sku: case_.sku,
         transactionId: case_.transaction_id,
-        amountPaid: case_.amount_paid,
         purchasedAt: purchased,
         currency: case_.currency ?? "usd",
         providerRefundFn: makeProvider("success", calls),
         nowFn: () => clock,
-      });
+      };
+
+      if (case_.amount_paid != null && case_.amount_paid_minor_units != null) {
+        toolOpts.amountPaid = case_.amount_paid;
+        toolOpts.amountPaidMinorUnits = case_.amount_paid_minor_units;
+      } else if (case_.amount_paid_minor_units != null) {
+        toolOpts.amountPaidMinorUnits = case_.amount_paid_minor_units;
+      } else {
+        toolOpts.amountPaid = case_.amount_paid;
+      }
+
+      if (case_.refunded_at !== undefined) {
+        toolOpts.refundedAt =
+          case_.refunded_at != null ? new Date(case_.refunded_at) : null;
+      }
+
+      if (case_.expect_construction_error) {
+        expect(() => refunds.makeRefundTool(toolOpts as Parameters<typeof refunds.makeRefundTool>[0])).toThrow();
+        return;
+      }
+
+      const refund = refunds.makeRefundTool(toolOpts as Parameters<typeof refunds.makeRefundTool>[0]);
 
       for (const step of case_.steps) {
         refund.tool.setProviderRefundFn(makeProvider(step.provider, calls));

@@ -49,6 +49,7 @@ export class RefundTool {
   private readonly policy: SkuPolicy;
   private totalRefunded = 0;
   private readonly nowFn: () => Date;
+  private readonly refundedAt: Date | null;
 
   constructor(opts: {
     sku: string;
@@ -60,6 +61,7 @@ export class RefundTool {
     providerRefundFn: ProviderRefundFn;
     policy: SkuPolicy;
     nowFn?: () => Date;
+    refundedAt?: Date | null;
   }) {
     this.sku = opts.sku;
     this.transactionId = opts.transactionId;
@@ -70,6 +72,7 @@ export class RefundTool {
     this.providerRefundFn = opts.providerRefundFn;
     this.policy = opts.policy;
     this.nowFn = opts.nowFn ?? defaultNow;
+    this.refundedAt = opts.refundedAt ?? null;
   }
 
   /** Test helper: swap provider (parity with Python test patching). */
@@ -79,6 +82,18 @@ export class RefundTool {
 
   async call(amount: number): Promise<RefundResult> {
     const a = Number(amount);
+
+    if (this.refundedAt !== null) {
+      const result: RefundResult = {
+        status: "denied",
+        reason: "already_refunded",
+        refunded_at: this.refundedAt.toISOString(),
+        transaction_id: this.transactionId,
+      };
+      this.log(a, result);
+      return result;
+    }
+
     const denied = this.validate(a);
     if (denied) {
       this.log(a, denied);

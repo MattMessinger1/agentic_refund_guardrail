@@ -308,6 +308,88 @@
           }
         }
       ]
+    },
+    {
+      "id": "approved_with_minor_units",
+      "description": "amount_paid_minor_units=10000 is equivalent to amount_paid=100",
+      "policy": { "skus": { "shampoo": { "refund_window_days": 30 } } },
+      "clock_now": "2026-06-15T12:00:00Z",
+      "sku": "shampoo",
+      "transaction_id": "pi_minor",
+      "amount_paid_minor_units": 10000,
+      "purchased_at": "2026-06-10T12:00:00Z",
+      "currency": "usd",
+      "steps": [
+        {
+          "amount": 100,
+          "provider": "success",
+          "expect": {
+            "status": "approved",
+            "refunded_amount": 100,
+            "transaction_id": "pi_minor"
+          }
+        }
+      ]
+    },
+    {
+      "id": "error_both_amount_paid_options",
+      "description": "Providing both amount_paid and amount_paid_minor_units raises an error at construction",
+      "policy": { "skus": { "shampoo": { "refund_window_days": 30 } } },
+      "clock_now": "2026-06-15T12:00:00Z",
+      "sku": "shampoo",
+      "transaction_id": "pi_both",
+      "amount_paid": 100,
+      "amount_paid_minor_units": 10000,
+      "purchased_at": "2026-06-10T12:00:00Z",
+      "currency": "usd",
+      "expect_construction_error": true,
+      "steps": []
+    },
+    {
+      "id": "denied_already_refunded",
+      "description": "When refunded_at is set, refund is denied immediately",
+      "policy": { "skus": { "shampoo": { "refund_window_days": 30 } } },
+      "clock_now": "2026-06-15T12:00:00Z",
+      "sku": "shampoo",
+      "transaction_id": "pi_refunded",
+      "amount_paid": 100,
+      "refunded_at": "2026-06-11T00:00:00Z",
+      "purchased_at": "2026-06-10T12:00:00Z",
+      "currency": "usd",
+      "steps": [
+        {
+          "amount": 50,
+          "provider": "success",
+          "expect": {
+            "status": "denied",
+            "reason": "already_refunded",
+            "transaction_id": "pi_refunded"
+          }
+        }
+      ]
+    },
+    {
+      "id": "approved_refunded_at_null",
+      "description": "When refunded_at is null, normal flow proceeds",
+      "policy": { "skus": { "shampoo": { "refund_window_days": 30 } } },
+      "clock_now": "2026-06-15T12:00:00Z",
+      "sku": "shampoo",
+      "transaction_id": "pi_not_refunded",
+      "amount_paid": 100,
+      "refunded_at": null,
+      "purchased_at": "2026-06-10T12:00:00Z",
+      "currency": "usd",
+      "steps": [
+        {
+          "amount": 50,
+          "provider": "success",
+          "expect": {
+            "status": "approved",
+            "refunded_amount": 50,
+            "transaction_id": "pi_not_refunded"
+          }
+        }
+      ]
     }
   ]
 }

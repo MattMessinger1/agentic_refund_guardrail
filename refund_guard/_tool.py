@@ -31,6 +31,7 @@ class RefundTool:
         provider_refund_fn: Callable[[float, str, str], Any],
         policy: SkuPolicy,
         now_fn: Callable[[], datetime] | None = None,
+        refunded_at: datetime | None = None,
     ) -> None:
         self._sku = sku
         self._transaction_id = transaction_id
@@ -42,9 +43,21 @@ class RefundTool:
         self._policy = policy
         self._total_refunded: float = 0.0
         self._now_fn = now_fn if now_fn is not None else _DEFAULT_NOW
+        self._refunded_at = refunded_at
 
     def __call__(self, amount: float) -> dict[str, Any]:
         amount = float(amount)
+
+        if self._refunded_at is not None:
+            result: dict[str, Any] = {
+                "status": "denied",
+                "reason": "already_refunded",
+                "refunded_at": self._refunded_at.isoformat(),
+                "transaction_id": self._transaction_id,
+            }
+            self._log(amount, result)
+            return result
+
         result = self._validate(amount)
         if result is not None:
             self._log(amount, result)

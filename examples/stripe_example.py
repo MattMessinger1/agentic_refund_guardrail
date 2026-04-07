@@ -1,10 +1,19 @@
 """
-Minimal example: Stripe refund with refund-guard.
+Stripe refund example with refund-guard.
+
+⚠️  WARNING: This example calls the REAL Stripe API when run.
+    It will attempt an actual refund if you provide valid Stripe credentials.
+    For a safe example that doesn't touch Stripe, see examples/minimal-python/.
 
 Prerequisites:
     pip install refund-guard stripe
 
-Replace get_order() with your real order-loading logic.
+    You also need a valid STRIPE_SECRET_KEY in your environment.
+
+Run from the repo root (so the relative YAML path resolves):
+    python examples/stripe_example.py
+
+Replace FakeOrder with your real order-loading logic.
 """
 
 from datetime import datetime, timezone

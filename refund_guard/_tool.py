@@ -16,7 +16,8 @@ class RefundTool:
     """A callable that validates and executes a refund for one specific order.
 
     Created by :meth:`Refunds.make_refund_tool` -- not instantiated directly.
-    The agent receives this as a plain callable: ``refund_tool(amount)``.
+    The agent receives this as a plain callable: ``refund_tool(amount)``
+    or ``refund_tool()`` for a full refund of the remaining balance.
     """
 
     def __init__(
@@ -45,7 +46,9 @@ class RefundTool:
         self._now_fn = now_fn if now_fn is not None else _DEFAULT_NOW
         self._refunded_at = refunded_at
 
-    def __call__(self, amount: float) -> dict[str, Any]:
+    def __call__(self, amount: float | None = None) -> dict[str, Any]:
+        if amount is None:
+            amount = round(self._amount_paid - self._total_refunded, 2)
         amount = float(amount)
 
         if self._refunded_at is not None:

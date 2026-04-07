@@ -5,7 +5,7 @@ import { DENIAL_MESSAGES } from "./messages.js";
 export type { PolicyMap, SkuPolicy, ProviderRefundFn, RefundResult };
 export { loadPolicy, RefundTool, DENIAL_MESSAGES };
 
-export type RefundCallable = ((amount: number) => Promise<RefundResult>) & {
+export type RefundCallable = ((amount?: number) => Promise<RefundResult>) & {
   tool: RefundTool;
 };
 
@@ -64,7 +64,7 @@ export class Refunds {
       refundedAt: opts.refundedAt,
     });
 
-    const fn = ((amount: number) => tool.call(amount)) as RefundCallable;
+    const fn = ((amount?: number) => tool.call(amount)) as RefundCallable;
     fn.tool = tool;
     return fn;
   }

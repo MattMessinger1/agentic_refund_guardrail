@@ -32,7 +32,7 @@ refund_tool = refunds.make_refund_tool(
     provider_refund_fn=my_refund,
 )
 
-result = refund_tool(80.00)
+result = refund_tool()     # full refund -- or pass an amount for partial
 ```
 
 What it checks before your provider function runs:
@@ -43,9 +43,9 @@ What it checks before your provider function runs:
 - Amount does not exceed what was paid
 - Remaining balance after partial refunds
 
-So instead of trusting agent-supplied transaction IDs or amounts, you derive
-everything from real order data and only let the agent choose the refund amount
-inside those bounds.
+Call with no argument for a full refund, or pass an amount for a partial. Instead
+of trusting agent-supplied transaction IDs or amounts, you derive everything from
+real order data and only let the agent choose the refund amount inside those bounds.
 
 **How this differs from generic agent guardrails:**
 

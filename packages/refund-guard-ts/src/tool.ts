@@ -80,8 +80,11 @@ export class RefundTool {
     this.providerRefundFn = fn;
   }
 
-  async call(amount: number): Promise<RefundResult> {
-    const a = Number(amount);
+  async call(amount?: number): Promise<RefundResult> {
+    const a =
+      amount != null
+        ? Number(amount)
+        : Math.round((this.amountPaid - this.totalRefunded) * 100) / 100;
 
     if (this.refundedAt !== null) {
       const result: RefundResult = {

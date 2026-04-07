@@ -9,7 +9,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const casesPath = join(__dirname, "../../../contracts/parity/cases.json");
 
 type Step = {
-  amount: number;
+  amount: number | null;
   provider: string;
   expect: Record<string, unknown>;
   expect_detail_contains?: string;
@@ -68,7 +68,7 @@ describe("parity fixtures (TypeScript)", () => {
 
   it("fixture version", () => {
     expect(doc.version).toBe(1);
-    expect(doc.tests.length).toBe(17);
+    expect(doc.tests.length).toBe(20);
   });
 
   for (const case_ of doc.tests) {
@@ -114,7 +114,9 @@ describe("parity fixtures (TypeScript)", () => {
 
       for (const step of case_.steps) {
         refund.tool.setProviderRefundFn(makeProvider(step.provider, calls));
-        const result = (await refund(step.amount)) as Record<string, unknown>;
+        const result = (step.amount == null
+          ? await refund()
+          : await refund(step.amount)) as Record<string, unknown>;
         assertSubset(step.expect, result);
 
         if (step.expect_detail_contains) {

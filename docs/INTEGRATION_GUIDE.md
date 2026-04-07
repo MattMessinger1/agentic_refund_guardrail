@@ -48,10 +48,11 @@ const refund = refundGuard.makeRefundTool({
   purchasedAt: new Date(charge.charged_at),
   refundedAt: charge.refunded_at ? new Date(charge.refunded_at) : null,
   provider: "stripe",
-  providerRefundFn: async (_amount, _txnId, _currency) => {
+  providerRefundFn: async (amount, txnId, currency) => {
+    const amountCents = Math.round(amount * 100);
     const { data, error } = await supabase.functions.invoke(
       "stripe-refund-success-fee",
-      { body: { charge_id: chargeId, reason: "booking_cancelled" } },
+      { body: { charge_id: chargeId, amount_cents: amountCents, reason: "booking_cancelled" } },
     );
     if (error || !data?.success) throw new Error(data?.error ?? "Refund failed");
     return data;
@@ -61,12 +62,14 @@ const refund = refundGuard.makeRefundTool({
 
 Your `providerRefundFn` does **not** have to call Stripe directly. In our case, it called a Supabase Edge Function that internally calls Stripe. The only requirement is the signature: `(amount, transactionId, currency) => result`.
 
+> **Important:** Always forward the `amount` parameter to your payment API. If your provider function ignores it, the guard's amount validation provides no protection.
+
 ---
 
 ## Step 3 -- Call and map results
 
 ```typescript
-const result = await refund(amountDollars);
+const result = await refund();  // full refund -- or refund(50) for partial
 
 if (result.status === "denied" || result.status === "error") {
   return {
@@ -118,4 +121,5 @@ The library handles "can this refund happen?" The prompt handles "should I even 
 | Not passing `refundedAt` from DB | Double refunds possible across requests | Pass `refundedAt: charge.refunded_at` |
 | Only guarding one refund path | Unguarded path bypasses all validation | Grep for all refund calls |
 | Trusting the AI model for order data | Wrong amounts, fake transaction IDs | Always load from your database |
-| Forgetting `await` on the refund call | `result` is a Promise, not the actual result | `const result = await refund(amount)` |
+| Forgetting `await` on the refund call | `result` is a Promise, not the actual result | `const result = await refund()` |
+| Provider function ignores `amount` | Guard validates amount but payment API refunds wrong amount | Always forward `amount` to your payment API |

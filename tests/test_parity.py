@@ -46,7 +46,7 @@ def test_shared_parity_fixtures_match_python():
 
     assert cases_doc["version"] == 1
     tests = cases_doc["tests"]
-    assert len(tests) == 13
+    assert len(tests) == 17
 
     for case in tests:
         clock = _parse_iso(case["clock_now"])
@@ -56,15 +56,32 @@ def test_shared_parity_fixtures_match_python():
         calls: list = []
         refunds = Refunds(case["policy"])
 
-        tool = refunds.make_refund_tool(
+        tool_kwargs: dict = dict(
             sku=case["sku"],
             transaction_id=case["transaction_id"],
-            amount_paid=case["amount_paid"],
             purchased_at=purchased,
             currency=case.get("currency", "usd"),
             provider_refund_fn=_make_provider("success", calls),
             now_fn=lambda: clock,
         )
+
+        if "amount_paid_minor_units" in case and "amount_paid" in case:
+            tool_kwargs["amount_paid"] = case["amount_paid"]
+            tool_kwargs["amount_paid_minor_units"] = case["amount_paid_minor_units"]
+        elif "amount_paid_minor_units" in case:
+            tool_kwargs["amount_paid_minor_units"] = case["amount_paid_minor_units"]
+        else:
+            tool_kwargs["amount_paid"] = case["amount_paid"]
+
+        if "refunded_at" in case and case["refunded_at"] is not None:
+            tool_kwargs["refunded_at"] = _parse_iso(case["refunded_at"])
+
+        if case.get("expect_construction_error"):
+            with pytest.raises((ValueError, TypeError)):
+                refunds.make_refund_tool(**tool_kwargs)
+            continue
+
+        tool = refunds.make_refund_tool(**tool_kwargs)
 
         for step in case["steps"]:
             mode = step["provider"]

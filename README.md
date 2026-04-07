@@ -112,8 +112,9 @@ def my_refund(amount: float, transaction_id: str, currency: str):
 refund_tool = refunds.make_refund_tool(
     sku=order.sku,
     transaction_id=order.transaction_id,
-    amount_paid=order.amount_paid,
+    amount_paid_minor_units=order.amount_cents,  # library divides by 100
     purchased_at=order.purchased_at,
+    refunded_at=order.refunded_at,               # None or datetime; blocks double-refunds
     provider_refund_fn=my_refund,
 )
 
@@ -135,8 +136,9 @@ const order = await loadOrderFromDb(orderId);
 const refund = refunds.makeRefundTool({
   sku: order.sku,
   transactionId: order.transactionId,
-  amountPaid: order.amountPaid,
+  amountPaidMinorUnits: order.amountCents,  // library divides by 100
   purchasedAt: order.purchasedAt,
+  refundedAt: order.refundedAt,             // null/undefined or Date; blocks double-refunds
   providerRefundFn: (amount, transactionId, currency) =>
     // Your existing Stripe / PayPal / Shopify / HTTP call
     stripe.refunds.create({
@@ -170,14 +172,30 @@ console.log(result);
 |--------|------|----------|---------|
 | `sku` | `string` | yes | -- |
 | `transaction_id` / `transactionId` | `string` | yes | -- |
-| `amount_paid` / `amountPaid` | `number` | yes | -- |
+| `amount_paid` / `amountPaid` | `number` | one of these | -- |
+| `amount_paid_minor_units` / `amountPaidMinorUnits` | `int` / `number` | one of these | -- |
 | `purchased_at` / `purchasedAt` | `datetime` / `Date` | yes | -- |
 | `provider_refund_fn` / `providerRefundFn` | `(amount, txn_id, currency) -> any` | yes | -- |
+| `refunded_at` / `refundedAt` | `datetime` / `Date` or `None`/`null` | no | `None` / `null` |
 | `currency` | `string` | no | `"usd"` |
 | `provider` | `string` | no | `"unknown"` |
 | `now_fn` / `nowFn` | `() -> datetime/Date` | no | current UTC time |
 
+Provide **one** of `amount_paid` (major units, e.g. dollars) or `amount_paid_minor_units` (e.g. cents -- divided by 100 internally). Providing both raises an error.
+
 Returns a **callable** (Python) or **async function** (TypeScript) with signature `(amount) -> result`.
+
+### `DENIAL_MESSAGES`
+
+```python
+from refund_guard import DENIAL_MESSAGES
+```
+
+```typescript
+import { DENIAL_MESSAGES } from "@mattmessinger/refund-guard";
+```
+
+A `dict` / `Record<string, string>` mapping every denial reason code to a user-facing message. Use directly or override individual values.
 
 ---
 
@@ -207,11 +225,14 @@ Returns a **callable** (Python) or **async function** (TypeScript) with signatur
 
 | `reason` | What it means | Suggested message for users |
 |----------|---------------|-----------------------------|
+| `already_refunded` | `refunded_at` was set -- order was already refunded | "This order has already been refunded." |
 | `refund_window_expired` | Purchase is older than the SKU's `refund_window_days` | "The refund window for this order has closed." |
 | `amount_exceeds_limit` | Requested more than was originally paid | "Refund amount exceeds the original charge." |
 | `amount_exceeds_remaining` | After partial refunds, not enough balance left | "This order has already been partially refunded." |
 | `invalid_amount` | Amount is zero or negative | "Please enter a valid refund amount." |
 | `provider_error` | Your provider call threw an exception | "Refund could not be processed. Please contact support." |
+
+These messages are available as `DENIAL_MESSAGES` -- import and use directly instead of building your own map.
 
 When `status` is `"denied"`, your provider function was **never called** -- no money moved.
 
@@ -219,10 +240,11 @@ When `status` is `"denied"`, your provider function was **never called** -- no m
 
 ## What it checks (in order)
 
-1. **Refund window** -- still within `refund_window_days` for that SKU
-2. **Positive amount** -- must be > 0
-3. **Amount cap** -- cannot exceed what was paid on this order
-4. **Remaining balance** -- after partial refunds, cannot exceed what's left
+1. **Already refunded** -- if `refunded_at` is set, denied immediately
+2. **Refund window** -- still within `refund_window_days` for that SKU
+3. **Positive amount** -- must be > 0
+4. **Amount cap** -- cannot exceed what was paid on this order
+5. **Remaining balance** -- after partial refunds, cannot exceed what's left
 
 If any check fails, **your provider function is never called.**
 
@@ -232,11 +254,11 @@ If any check fails, **your provider function is never called.**
 
 | | |
 |---|---|
-| **Prevent double refunds across HTTP requests** | The "remaining balance" check tracks partial refunds within a single `makeRefundTool` instance. Across separate requests, `totalRefunded` resets to 0. **Your database** (`refunded_at` or equivalent) is the source of truth. |
+| **Prevent double refunds across HTTP requests** | Pass `refunded_at` from your database and the library will deny immediately. If you don't pass it, you must check it yourself. |
 | **Fetch order data** | You load SKU, amount, purchase date, and transaction ID from **your** database. |
 | **Replace your payment SDK** | It wraps your existing refund call. You still need Stripe / PayPal / etc. |
 | **Run on the client / frontend** | Server-side only. Your mobile or web app calls your backend; your backend runs this. |
-| **Tell your AI agent when to offer refunds** | The library enforces hard limits. Your agent's prompt encodes business rules. See the [Integration Guide](docs/INTEGRATION_GUIDE.md#step-6--update-your-ai-agents-system-prompt). |
+| **Tell your AI agent when to offer refunds** | The library enforces hard limits. Your agent's prompt encodes business rules. See the [Integration Guide](docs/INTEGRATION_GUIDE.md#step-4--update-your-ai-agents-system-prompt). |
 
 ---
 
@@ -247,7 +269,8 @@ If any check fails, **your provider function is never called.**
 | `SKU 'x' not found in policy` | Add that SKU to your policy object or YAML file. |
 | `Cannot find module` (TypeScript) | Run `npm install @mattmessinger/refund-guard` in your project folder. |
 | Forgot `await` (TypeScript) | The refund callable is async: `const r = await refund(10)`. |
-| Every refund denied as `amount_exceeds_limit` | You're probably passing **minor units** (cents) instead of **major units** (dollars). Most payment providers (Stripe, PayPal, Shopify) store amounts in cents -- divide by 100. |
+| Every refund denied as `amount_exceeds_limit` | You're passing **minor units** (cents) instead of **major units** (dollars). Use `amount_paid_minor_units` / `amountPaidMinorUnits` and the library converts for you. |
+| Every refund denied as `already_refunded` | You're passing a non-null `refunded_at` -- this order was already refunded in your database. |
 | Policy file not found | Pass an absolute path, or use an inline policy object instead. |
 | `refund_window_expired` | Expected if the purchase is older than the SKU's window. |
 
@@ -284,7 +307,7 @@ pip install -e ".[dev]" && pytest          # Python
 cd packages/refund-guard-ts && npm ci && npm test  # TypeScript
 ```
 
-Both languages run the **same 13 test scenarios** from [`contracts/parity/cases.json`](contracts/parity/cases.json). If you change behavior in one language, the shared tests catch the drift.
+Both languages run the **same 17 test scenarios** from [`contracts/parity/cases.json`](contracts/parity/cases.json). If you change behavior in one language, the shared tests catch the drift.
 
 ---
 
@@ -300,7 +323,7 @@ No. It sits **in front of** your existing refund code.
 So pip users and npm users get the **same behavior** -- locked by shared tests, not by vibes.
 
 **What do I tell my AI agent about refund policy?**
-The library validates amounts and windows. Your agent's prompt should encode *when* to offer refunds. See the [Integration Guide](docs/INTEGRATION_GUIDE.md#step-6--update-your-ai-agents-system-prompt).
+The library validates amounts and windows. Your agent's prompt should encode *when* to offer refunds. See the [Integration Guide](docs/INTEGRATION_GUIDE.md#step-4--update-your-ai-agents-system-prompt).
 
 **I'm integrating into a real app -- where do I start?**
 Read the [Integration Guide](docs/INTEGRATION_GUIDE.md).

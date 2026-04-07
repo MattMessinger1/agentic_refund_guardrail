@@ -4,25 +4,38 @@ All notable changes to **refund-guard** are tracked here. Version numbers apply 
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-04-07
+
+### Added
+
+- **`amount_paid_minor_units` / `amountPaidMinorUnits`** — pass cents directly; the library divides by 100. Mutually exclusive with `amount_paid`. Eliminates the most common integration mistake.
+- **`refunded_at` / `refundedAt`** — pass your database's refund timestamp. If set, the tool immediately returns `{ status: "denied", reason: "already_refunded" }` without calling your provider. Eliminates manual double-refund checks.
+- **`DENIAL_MESSAGES`** — exported constant mapping every denial reason code to a user-facing message. Import instead of writing your own map.
+- 4 new parity test cases (17 total): minor units, both-provided error, already-refunded, refunded-at-null.
+
+### Changed
+
+- Integration guide shrinks from 6 steps to 4 by using the new parameters.
+- `amount_paid` / `amountPaid` is now optional (provide one of it or `amount_paid_minor_units`).
+
 ## [0.1.2] — 2026-04-07
 
 ### Added
 
-- **[docs/INTEGRATION_GUIDE.md](docs/INTEGRATION_GUIDE.md)** — real-world walkthrough based on dogfooding in a production MCP server.
-- **[examples/real-world-ts/](examples/real-world-ts/)** — annotated reference pattern showing DB fetch, unit conversion, result mapping.
-- **Denial reason glossary** in README — maps every `reason` code to a suggested user-facing message.
-- **"What this library does NOT do"** section in README.
-- **API reference** table in README.
+- **[docs/INTEGRATION_GUIDE.md](docs/INTEGRATION_GUIDE.md)** — real-world walkthrough based on dogfooding.
+- **[examples/real-world-ts/](examples/real-world-ts/)** — annotated reference pattern.
+- **Denial reason glossary** and **API reference** in README.
 
 ### Changed
 
-- README tutorial now leads with inline policy objects; YAML shown as alternative.
-- Replaced Stripe-specific "cents" language with provider-agnostic "minor units" across all docs.
-- Removed redundant "How this differs" and "Works with any provider" sections from README (content already in FAQ table).
-- Slimmed STEP_BY_STEP.md — replaced duplicated content with links to canonical sources.
-- Slimmed npm package README to essentials + links to GitHub.
-- Consolidated MANUAL_STEPS.md into a link index; merged publishing details into RELEASING.md.
-- RELEASING.md now documents automated publishing workflows for both PyPI and npm.
+- README tutorial leads with inline policy objects; YAML shown as alternative.
+- Replaced Stripe-specific "cents" with provider-agnostic "minor units" across all docs.
+- Removed redundant README sections; slimmed STEP_BY_STEP and package README via cross-links.
+- Consolidated publishing docs in RELEASING.md.
+
+### Fixed
+
+- Removed deprecated `License :: OSI Approved` classifier (PEP 639).
 
 ## [0.1.1] — 2026-04-06
 
@@ -45,7 +58,8 @@ All notable changes to **refund-guard** are tracked here. Version numbers apply 
 - Documentation: README, STEP_BY_STEP, CONTRIBUTING, SECURITY.
 - GitHub Actions CI for pytest + npm test/build.
 
-[Unreleased]: https://github.com/MattMessinger1/agentic_refund_guardrail/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/MattMessinger1/agentic_refund_guardrail/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/MattMessinger1/agentic_refund_guardrail/compare/v0.1.2...v0.2.0
 [0.1.2]: https://github.com/MattMessinger1/agentic_refund_guardrail/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/MattMessinger1/agentic_refund_guardrail/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/MattMessinger1/agentic_refund_guardrail/releases/tag/v0.1.0

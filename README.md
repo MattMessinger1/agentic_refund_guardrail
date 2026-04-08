@@ -17,6 +17,12 @@ Payment providers protect against *technically* invalid refunds (can't refund mo
 
 The library is most powerful when you have multiple SKUs with different refund windows, partial refunds, or a custom payment backend with no built-in guardrails. But even for simple single-product full-refund flows, the refund window enforcement and structured denial reasons don't exist anywhere else in the stack.
 
+## Who this is NOT for
+
+- **Manual refund dashboards.** If a human reviews every refund in a UI, they *are* the guardrail. This library is for automated/agent-driven flows.
+- **Read-only agents.** If your agent can look up orders but never triggers a refund, there's nothing to guard.
+- **Teams that already enforce all business rules server-side before the refund call.** If your backend already checks the refund window, remaining balance, and double-refund status before calling Stripe, this library would duplicate that logic. It's meant to *be* that layer, not wrap another one.
+
 ## Install
 
 ```bash

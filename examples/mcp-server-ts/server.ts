@@ -2,6 +2,7 @@
  * MCP server pattern.
  *
  * Expose a refund tool to MCP clients while keeping order truth on the server.
+ * orderId is a lookup hint, not trusted refund data.
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -39,7 +40,23 @@ server.registerTool(
     },
   },
   async ({ orderId, amount, reason }) => {
-    const order = await loadOrderFromDb(orderId);
+    const actor = await getAuthorizedActorForMcpSession();
+    const order = await loadOrderForAuthorizedActor(orderId, actor);
+    if (order == null) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              success: false,
+              code: "order_not_found",
+              message: "Order not found or not refundable by this actor.",
+            }),
+          },
+        ],
+      };
+    }
+
     const result = await refundOrderWithGuard(order, amount, reason);
     return {
       content: [
@@ -65,12 +82,14 @@ async function refundOrderWithGuard(
     purchasedAt: new Date(order.purchasedAt),
     refundedAt: order.refundedAt ? new Date(order.refundedAt) : null,
     provider: "stripe",
-    providerRefundFn: async (validatedAmount) =>
-      createStripeRefund({
+    providerRefundFn: async (validatedAmount) => {
+      const amountCents = Math.round(validatedAmount * 100);
+      return createStripeRefund({
         paymentIntentId: order.paymentIntentId,
-        amountCents: Math.round(validatedAmount * 100),
-        idempotencyKey: `refund:${order.id}:${reason}`,
-      }),
+        amountCents,
+        idempotencyKey: `refund:${order.id}:${amountCents}:${reason}`,
+      });
+    },
   });
 
   const result =
@@ -97,7 +116,16 @@ type Order = {
   refundedAt: string | null;
 };
 
-declare function loadOrderFromDb(orderId: string): Promise<Order>;
+type AuthorizedActor = {
+  id: string;
+  tenantId?: string;
+};
+
+declare function getAuthorizedActorForMcpSession(): Promise<AuthorizedActor>;
+declare function loadOrderForAuthorizedActor(
+  orderId: string,
+  actor: AuthorizedActor,
+): Promise<Order | null>;
 declare function createStripeRefund(input: {
   paymentIntentId: string;
   amountCents: number;

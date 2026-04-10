@@ -70,7 +70,10 @@ Payment providers protect against *technically* invalid refunds. They do not kno
 5. Give the agent only `amount` and `reason`, or treat `orderId` as a scoped lookup hint.
 6. Run the minimal example or policy doctor before real money.
 
-Using Claude or Codex to wire this into an existing app? Start with the prompt in the [Integration Guide](docs/INTEGRATION_GUIDE.md#paste-this-into-claude-or-codex).
+## Copy/paste prompts for vibe builders
+
+- [Prompt 1: Install the refund-policy gate](docs/INTEGRATION_GUIDE.md#prompt-1-install-the-refund-policy-gate)
+- [Prompt 2: Complete the security map](docs/INTEGRATION_GUIDE.md#prompt-2-complete-the-security-map)
 
 ## Security categories to understand
 

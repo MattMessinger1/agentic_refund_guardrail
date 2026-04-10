@@ -2,6 +2,10 @@
 
 Run policy scenarios without Stripe, PayPal, Shopify, or secrets.
 
+- **What it demonstrates:** testing refund policy with fake provider calls before real money can move.
+- **Copy this if:** you want to try refund windows, allowed reasons, final-sale SKUs, partial-refund state, or manual-review thresholds from JSON scenarios.
+- **What it does not handle:** real provider calls, database locks, or production refund records.
+
 ## Python
 
 From the repository root:

@@ -2,6 +2,10 @@
 
 Use these patterns when an AI agent can trigger refunds.
 
+Use this if you are wiring a refund-capable agent into OpenAI, Vercel AI SDK, LangChain, MCP, Stripe, Supabase, Shopify, or a custom backend. Do not use this for manual refund dashboards, read-only agents, client-side refund code, or systems that already enforce the same policy server-side.
+
+`refund-guard` sits between an untrusted AI tool call and your refund provider. The framework can change; the safety shape should not.
+
 ## Safe shape
 
 1. The agent may supply only `amount` and `reason`.

@@ -1,6 +1,27 @@
 # @mattmessinger/refund-guard
 
-TypeScript implementation of [refund-guard](https://github.com/MattMessinger1/agentic_refund_guardrail) -- safe refund policy enforcement for AI agents.
+Server-side refund policy checks between an untrusted AI tool call and your refund provider.
+
+The agent may supply only `amount` and `reason`. Your server supplies order truth from the database, and `refund-guard` checks policy before Stripe/PayPal/Shopify/custom refund code runs.
+
+## What this does for you
+
+- Turns one real database order into a scoped refund tool.
+- Keeps transaction IDs, paid amounts, already-refunded amounts, SKUs, dates, and refund status out of model control.
+- Blocks bad refund attempts before your provider function runs.
+
+## Who this is for
+
+- Developers building AI support agents, chatbots, MCP servers, or tool-calling LLM apps that can issue refunds.
+- Vercel AI SDK, OpenAI, LangChain, or MCP builders who need the safe backend shape.
+- Apps with refund windows, partial refunds, final-sale products, allowed reasons, or manual-review thresholds.
+
+## Who this is NOT for
+
+- Manual refund dashboards where a human approves every refund.
+- Read-only agents that never trigger refunds.
+- Backends that already enforce equivalent refund policy before provider calls.
+- Client-side refund flows. Keep refund providers and secrets on the server.
 
 ## Install
 

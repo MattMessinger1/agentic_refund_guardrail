@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "refund-guard"
 version = "0.3.0"
-description = "Turn a real order into a safe refund tool for your AI agent."
+description = "Server-side refund policy checks between an AI tool call and your refund provider."
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"

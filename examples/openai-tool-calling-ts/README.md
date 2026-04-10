@@ -7,4 +7,10 @@ This shows the safe shape for an OpenAI Responses API refund flow:
 3. `refund-guard` supplies SKU, transaction ID, paid amount, refunded amount, and purchase date from server state.
 4. The payment provider is called only after validation passes.
 
+This is an adapter example: it shows where `refund-guard` fits inside a raw Responses API function/tool-calling handler. The framework can change; the safety shape should not.
+
+- **What it demonstrates:** OpenAI tool calling where the model supplies only `amount` and `reason`.
+- **Copy this if:** you are using the OpenAI SDK directly instead of a higher-level agent framework.
+- **What it does not handle:** real database functions, real Stripe setup, user auth, or production refund persistence.
+
 The handler is intentionally annotated. Replace the declared database and Stripe functions with your app's real code.

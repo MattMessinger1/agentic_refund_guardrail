@@ -1,5 +1,5 @@
 name: Documentation fix
-description: README wrong, typo, confusing step, broken link
+description: Report confusing positioning, unclear examples, stale wording, typos, or broken links
 title: "[docs] "
 labels: ["documentation"]
 body:

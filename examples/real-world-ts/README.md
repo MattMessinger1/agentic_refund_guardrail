@@ -2,6 +2,10 @@
 
 This is a **reference pattern**, not a runnable example. It shows the complete integration flow based on actual production usage.
 
+- **What it demonstrates:** the full server-side shape: load order truth, create a scoped tool, validate policy, call your provider, and map denial messages.
+- **Copy this if:** you are wiring `refund-guard` into a TypeScript backend with a database and payment provider.
+- **What it does not handle:** framework-specific routing, provider credentials, auth, or database transaction code.
+
 Read `handler.ts` for an annotated walkthrough of every step:
 
 1. Create the guard (module-level singleton, inline policy)

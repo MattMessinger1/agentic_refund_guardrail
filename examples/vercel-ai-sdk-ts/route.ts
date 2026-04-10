@@ -1,7 +1,8 @@
 /**
  * Vercel AI SDK route pattern.
  *
- * The model supplies only amount + reason. Your route supplies all order truth.
+ * The model supplies only amount + reason. Your route resolves the scoped order
+ * and supplies all trusted order truth.
  */
 
 import { openai } from "@ai-sdk/openai";
@@ -23,7 +24,15 @@ export async function POST(req: Request) {
     orderId: string;
     message: string;
   };
-  const order = await loadOrderFromDb(orderId);
+  const currentUser = await requireUser(req);
+  // orderId is a lookup hint, not trusted refund data.
+  const order = await loadOrderForCurrentUser(orderId, currentUser.id);
+  if (order == null) {
+    return Response.json(
+      { error: "Order not found or not refundable by this user." },
+      { status: 404 },
+    );
+  }
 
   const { text } = await generateText({
     model: openai(process.env.OPENAI_MODEL ?? "gpt-5.4-mini"),
@@ -63,12 +72,14 @@ async function refundOrderWithGuard(
     purchasedAt: new Date(order.purchasedAt),
     refundedAt: order.refundedAt ? new Date(order.refundedAt) : null,
     provider: "stripe",
-    providerRefundFn: async (validatedAmount) =>
-      createStripeRefund({
+    providerRefundFn: async (validatedAmount) => {
+      const amountCents = Math.round(validatedAmount * 100);
+      return createStripeRefund({
         paymentIntentId: order.paymentIntentId,
-        amountCents: Math.round(validatedAmount * 100),
-        idempotencyKey: `refund:${order.id}:${reason}`,
-      }),
+        amountCents,
+        idempotencyKey: `refund:${order.id}:${amountCents}:${reason}`,
+      });
+    },
   });
 
   const result =
@@ -95,7 +106,15 @@ type Order = {
   refundedAt: string | null;
 };
 
-declare function loadOrderFromDb(orderId: string): Promise<Order>;
+type AuthenticatedUser = {
+  id: string;
+};
+
+declare function requireUser(req: Request): Promise<AuthenticatedUser>;
+declare function loadOrderForCurrentUser(
+  orderId: string,
+  userId: string,
+): Promise<Order | null>;
 declare function createStripeRefund(input: {
   paymentIntentId: string;
   amountCents: number;

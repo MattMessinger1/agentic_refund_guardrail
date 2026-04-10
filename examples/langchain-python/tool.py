@@ -1,7 +1,8 @@
 """
 LangChain tool pattern.
 
-The model supplies amount + reason. Your tool body loads the order and creates
+The model may supply order_id, amount, and reason. Your tool body treats
+order_id as a lookup hint, resolves it through the current actor, and creates
 the scoped refund-guard tool from server-side truth.
 """
 
@@ -30,7 +31,7 @@ refunds = Refunds({
 
 
 class RefundOrderInput(BaseModel):
-    order_id: str = Field(description="Order ID from the current authenticated user")
+    order_id: str = Field(description="Order ID scoped to the current actor")
     amount: float | None = Field(
         default=None,
         description="Refund amount in major units. None means full remaining balance.",
@@ -50,7 +51,15 @@ def refund_order(
 ) -> dict:
     """Refund a server-scoped order if refund-guard approves it."""
 
-    order = load_order_from_db(order_id)
+    actor = get_current_actor()
+    order = load_order_for_actor(order_id, actor)
+    if order is None:
+        return {
+            "success": False,
+            "code": "order_not_found",
+            "message": "Order not found or not refundable by this actor.",
+        }
+
     refund = refunds.make_refund_tool(
         sku=order["sku"],
         transaction_id=order["payment_intent_id"],
@@ -69,7 +78,9 @@ def refund_order(
                 amount_cents=round(validated_amount * 100),
                 currency=currency,
                 reason=reason,
-                idempotency_key=f"refund:{order_id}:{round(validated_amount * 100)}:{reason}",
+                idempotency_key=(
+                    f"refund:{order['id']}:{round(validated_amount * 100)}:{reason}"
+                ),
             )
         ),
     )
@@ -85,8 +96,12 @@ def refund_order(
     }
 
 
-def load_order_from_db(order_id: str) -> dict:
-    raise NotImplementedError("Replace with your database lookup")
+def get_current_actor() -> dict:
+    raise NotImplementedError("Replace with your auth/session lookup")
+
+
+def load_order_for_actor(order_id: str, actor: dict) -> dict | None:
+    raise NotImplementedError("Replace with your scoped database lookup")
 
 
 def create_stripe_refund(

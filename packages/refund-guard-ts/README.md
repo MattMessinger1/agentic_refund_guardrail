@@ -1,19 +1,21 @@
 # @mattmessinger/refund-guard
 
-Server-side refund policy checks between an untrusted AI tool call and your refund provider.
+Server-side refund policy checks between trusted order data and your refund provider.
 
-The agent may supply only `amount` and `reason`. Your server supplies order truth from the database, and `refund-guard` checks policy before Stripe/PayPal/Shopify/custom refund code runs.
+Your app resolves the real order first. `refund-guard` checks policy before Stripe/PayPal/Shopify/custom refund code runs. If your agent supplies orderId, treat it as a lookup hint, not trusted refund data.
 
 ## Why use this
 
 - The model cannot control trusted refund fields.
 - Policy checks run before your provider function.
 - Common agent footguns are handled: partial-refund state, bad amounts, reason drift, and overlapping retries.
+- `refund-guard` is the refund-policy box in a larger safety map: your app owns auth/scoped lookup; your provider/app owns idempotency and persistence.
 
 ## Good fit
 
 - You are prototyping or shipping an AI support agent that can trigger refunds.
 - Your refund rules live in prompts, scattered backend code, or provider calls.
+- Your server can load trusted order data through user, ticket, tenant, admin, or backend scope.
 - Your app has refund windows, partial refunds, final-sale SKUs, allowed reasons, or manual-review thresholds.
 
 ## Not a fit
@@ -21,10 +23,11 @@ The agent may supply only `amount` and `reason`. Your server supplies order trut
 - Humans approve every refund before money moves.
 - Your agent is read-only.
 - Refund code runs client-side.
+- Your app cannot verify order scope before refunding.
 - Your backend already has equivalent tested refund-policy enforcement.
-- You need broad fraud, compliance, chargeback, or risk infrastructure.
+- You need auth, order ownership, provider idempotency, database locking, fraud, compliance, chargeback, or risk infrastructure handled by this package.
 
-For the full fit checklist and integration prompt, see the [GitHub README](https://github.com/MattMessinger1/agentic_refund_guardrail) and [Integration Guide](https://github.com/MattMessinger1/agentic_refund_guardrail/blob/main/docs/INTEGRATION_GUIDE.md).
+For the full refund safety map and integration prompt, see the [GitHub README](https://github.com/MattMessinger1/agentic_refund_guardrail) and [Integration Guide](https://github.com/MattMessinger1/agentic_refund_guardrail/blob/main/docs/INTEGRATION_GUIDE.md).
 
 ## Install
 
@@ -33,6 +36,8 @@ npm install @mattmessinger/refund-guard
 ```
 
 ## Quick example
+
+Assume `order` was already loaded through your app's user, ticket, tenant, admin, or backend scope.
 
 ```typescript
 import { Refunds, DENIAL_MESSAGES } from "@mattmessinger/refund-guard";
@@ -53,7 +58,11 @@ const refund = refunds.makeRefundTool({
 const result = await refund(undefined, { reason: "provider_cancelled" });
 // { status: "approved", refunded_amount: 80, ... }
 // { status: "denied", reason: "already_refunded", ... }
-const message = DENIAL_MESSAGES[result.reason as string] ?? "Refund could not be processed.";
+if (result.status !== "approved") {
+  const message = DENIAL_MESSAGES[result.reason] ?? "Refund could not be processed.";
+  return { success: false, message };
+}
+return { success: true, amount: result.refunded_amount };
 ```
 
 The returned callable is **async**. Call with no amount for a full remaining refund, or pass an amount for a partial refund: `await refund(50, { reason: "duplicate_charge" })`. `providerRefundFn` can return a Promise or a plain value.

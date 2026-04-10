@@ -7,26 +7,35 @@
 
 If your AI agent can trigger refunds, do not hand it a raw Stripe/PayPal/Shopify refund function.
 
-**refund-guard** is a small server-side policy layer between an untrusted AI tool call and your refund provider. The agent may supply only `amount` and `reason`; your server supplies order truth from the database, and `refund-guard` checks policy before Stripe/PayPal/Shopify/custom refund code runs.
+**refund-guard** is a deterministic refund-policy gate between trusted order data and your refund provider. Your app resolves the real order first; `refund-guard` checks policy; your Stripe/PayPal/Shopify/custom refund code runs only if the request is approved.
+
+`refund-guard` starts after trusted order data is loaded. If your agent supplies orderId, treat it as a lookup hint, not trusted refund data.
 
 ## Why use this
 
 - The model cannot control trusted refund fields: transaction IDs, SKUs, paid amounts, prior refunds, purchase dates, or refund status.
 - Policy checks run before your provider function: refund windows, remaining balance, final-sale SKUs, allowed reasons, and manual-review thresholds.
 - Common agent footguns are handled: stale partial-refund state, non-finite amounts, reason drift, and overlapping TypeScript retries.
-- Examples and the policy doctor help you copy and test the safe shape before touching real money.
+- The refund safety map and policy doctor help you copy and test the safe shape before touching real money.
 
 ## Where it fits
 
 ```text
-AI agent -> tool handler -> load order from DB -> refund-guard -> refund provider -> update DB
+AI agent -> tool handler -> resolve trusted order -> refund-guard -> refund provider -> update DB
 ```
+
+## Refund safety map
+
+- **Your app owns:** authenticated actor, scoped order lookup, and fresh order/refund state.
+- **refund-guard owns:** amount validity, remaining balance, refund window, non-refundable SKUs, allowed reasons, manual-review threshold, and no provider call on denial.
+- **Your app/provider/process owns:** idempotency, persisted refund results, audit logs, approval workflows, and broader fraud/chargeback/compliance/tax/accounting/marketplace risk.
 
 ## Good fit
 
 - You are prototyping or shipping an AI support agent that can trigger refunds.
 - Your refund rules live in prompts, scattered `if` statements, or provider-call code.
-- You need a small server-side policy layer before building a custom refund-policy service.
+- Your server can load trusted order data through user, ticket, tenant, admin, or backend scope.
+- You need a deterministic refund-policy gate and safety checklist before building a custom refund-policy service.
 - Your app has refund windows, partial refunds, final-sale SKUs, allowed reasons, or manual-review thresholds.
 
 Payment providers protect against *technically* invalid refunds. They do not know your business rules. `refund-guard` is the thin layer where those rules live.
@@ -36,23 +45,24 @@ Payment providers protect against *technically* invalid refunds. They do not kno
 - Humans approve every refund before money moves.
 - Your agent is read-only and never triggers refunds.
 - Refund code runs client-side. Provider secrets and refund calls belong on your server.
+- Your app cannot verify order scope before refunding, or plans to trust agent-supplied order metadata.
 - Your backend already has equivalent tested refund-policy enforcement.
-- You need broad fraud, compliance, chargeback, or risk infrastructure, not just refund-policy checks.
+- You need auth, order ownership, provider idempotency, database locking, fraud, compliance, chargeback, or risk infrastructure handled by this package.
 
 ## How to use this in 10 minutes
 
 1. Pick Python or TypeScript.
 2. Define SKU refund rules.
-3. Load the real order from your database.
+3. Resolve the real order through your app's user/ticket/tenant/admin scope.
 4. Create a scoped refund tool with paid/refunded/date/status fields.
-5. Give the agent only `amount` and `reason`.
+5. Give the agent only `amount` and `reason`, or treat `orderId` as a scoped lookup hint.
 6. Run the minimal example or policy doctor before real money.
 
 Using Claude or Codex to wire this into an existing app? Start with the prompt in the [Integration Guide](docs/INTEGRATION_GUIDE.md#paste-this-into-claude-or-codex).
 
 ## When to think about refund safety again
 
-`refund-guard` handles refund-policy boundaries. It is not your whole payments risk system. Recheck your design when:
+`refund-guard` handles the refund-policy box. It is not your whole payments risk system. Recheck your design when:
 
 - Refund amounts or volume grow enough that abuse would hurt.
 - You need audit logs, approval queues, role-based permissions, or support review.
@@ -68,14 +78,14 @@ npm install @mattmessinger/refund-guard  # TypeScript / Node
 
 ## Quickstart
 
-This is the safe copy-paste shape: load the order yourself, create a scoped tool, and let the agent supply only amount and reason.
+This is the safe copy-paste shape: resolve the order yourself, create a scoped tool, and let the agent supply only amount and reason.
 
 ```python
 from refund_guard import Refunds
 
 refunds = Refunds({"skus": {"shampoo": {"refund_window_days": 30}}})
 
-order = get_order_from_db(order_id)   # YOUR database, not the agent
+order = load_order_for_current_user(order_id, current_user.id)
 
 refund_tool = refunds.make_refund_tool(
     sku=order.sku,
@@ -95,16 +105,31 @@ result = refund_tool(50, reason="duplicate_charge")    # or partial refund
 
 That's it. Call with no argument for a full refund, or pass an amount for a partial refund. Your provider function is only called if every check passes.
 
-## What it checks (before your refund function runs)
+## What refund-guard enforces
+
+Given trusted order data, `refund-guard` enforces these checks before your refund function runs:
 
 - **Already refunded** -- if `refunded_at` is set, denied immediately
 - **Refund window** -- still within `refund_window_days` for that SKU
 - **Finite positive amount** -- must be a real number > 0
 - **Amount cap** -- cannot exceed what was paid
 - **Remaining balance** -- handles partial refunds (can't refund $60 twice on a $100 order)
-- **Policy caps** -- optional max refund amount, allowed reasons, and manual-review threshold
+- **Non-refundable SKUs** -- final-sale policies deny before the provider call
+- **Allowed reasons** -- reason must match your policy enum if one is configured
+- **Policy caps** -- optional max refund amount and manual-review threshold
 
 If any check fails, your provider function is **never called** -- no money moves.
+
+## What refund-guard does not decide
+
+- Who the user is.
+- Whether an order belongs to that user, session, ticket, tenant, or admin scope.
+- Whether the stated refund reason is factually true.
+- Whether your provider call is idempotent.
+- Whether database state is fresh across services or processes.
+- Whether the refund is fraud, chargeback, compliance, tax/accounting, or marketplace safe.
+
+orderId is a lookup hint, not proof. If your agent supplies it, your app must resolve it through auth/session/ticket/tenant scope before creating the refund tool.
 
 ## TypeScript
 
@@ -112,7 +137,8 @@ If any check fails, your provider function is **never called** -- no money moves
 import { Refunds, DENIAL_MESSAGES } from "@mattmessinger/refund-guard";
 
 const refunds = new Refunds({ skus: { shampoo: { refund_window_days: 30 } } });
-const order = await loadOrderFromDb(orderId);
+const currentUser = await requireCurrentUser();
+const order = await loadOrderForCurrentUser(orderId, currentUser.id);
 
 const refund = refunds.makeRefundTool({
   sku: order.sku,
@@ -125,7 +151,11 @@ const refund = refunds.makeRefundTool({
 });
 
 const result = await refund(undefined, { reason: "provider_cancelled" });
-const message = DENIAL_MESSAGES[result.reason as string] ?? "Refund processed.";
+if (result.status !== "approved") {
+  const message = DENIAL_MESSAGES[result.reason] ?? "Refund not allowed.";
+  return { success: false, message };
+}
+return { success: true, amount: result.refunded_amount };
 ```
 
 Both implementations follow the **same** behavior, enforced by [shared parity tests](contracts/parity/cases.json).
@@ -240,10 +270,10 @@ No. Pick whichever your backend uses.
 Pass `refunded_at` for fully refunded orders and `amount_refunded_minor_units` for previous partial refunds. The library denies immediately if `refunded_at` is set and uses `amount_refunded_minor_units` to compute the remaining balance for fresh request-scoped tools.
 
 **What data does the agent control?**
-The refund amount and reason. SKU, transaction ID, amount paid, amount already refunded, and purchase date all come from your database -- never from the agent.
+In the server-scoped pattern, only the refund amount and reason. If your agent supplies `orderId`, treat it as a lookup hint and resolve the order through your app's scope first. SKU, transaction ID, amount paid, amount already refunded, and purchase date all come from your database -- never from the agent.
 
 **Is this safe?**
-The agent is untrusted. Your app provides order truth (SKU, IDs, amounts, dates). Your payment provider handles money. The agent only chooses how much to refund, inside the bounds you set.
+It is one safety box, not the whole system. Your app owns auth and scoped order lookup. `refund-guard` owns refund-policy checks. Your provider and persistence layer own money movement, retries, and records.
 
 **How do I enable logging? (Python)**
 ```python

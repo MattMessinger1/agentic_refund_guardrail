@@ -45,8 +45,17 @@ const tools = [
   },
 ];
 
-export async function answerRefundRequest(orderId: string, userMessage: string) {
-  const order = await loadOrderFromDb(orderId);
+export async function answerRefundRequest(
+  orderId: string,
+  userMessage: string,
+  currentUser: AuthenticatedUser,
+) {
+  // orderId comes from route/session context here, not from the model tool call.
+  // Treat it as a lookup hint and resolve it through your app's auth boundary.
+  const order = await loadOrderForCurrentUser(orderId, currentUser.id);
+  if (order == null) {
+    return "Order not found or not refundable by this user.";
+  }
 
   const response = await openai.responses.create({
     model,
@@ -146,7 +155,14 @@ type Order = {
   refundedAt: string | null;
 };
 
-declare function loadOrderFromDb(orderId: string): Promise<Order>;
+type AuthenticatedUser = {
+  id: string;
+};
+
+declare function loadOrderForCurrentUser(
+  orderId: string,
+  userId: string,
+): Promise<Order | null>;
 declare function createStripeRefund(input: {
   paymentIntentId: string;
   amountCents: number;

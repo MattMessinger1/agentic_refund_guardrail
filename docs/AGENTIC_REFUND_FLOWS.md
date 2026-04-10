@@ -2,20 +2,44 @@
 
 Use these patterns when an AI agent can trigger refunds.
 
-Use this if you are wiring a refund-capable agent into OpenAI, Vercel AI SDK, LangChain, MCP, Stripe, Supabase, Shopify, or a custom backend. Do not use this for manual refund dashboards, read-only agents, client-side refund code, or systems that already enforce the same policy server-side.
+Use this if you are wiring a refund-capable agent into OpenAI, Vercel AI SDK, LangChain, MCP, Stripe, Supabase, Shopify, or a custom backend that can load trusted order data. Do not use this for manual refund dashboards, read-only agents, client-side refund code, apps that cannot verify order scope, or systems that already enforce the same policy server-side.
 
-`refund-guard` sits between an untrusted AI tool call and your refund provider. The framework can change; the safety shape should not.
+`refund-guard` is the refund-policy box in the larger refund safety map. The framework can change; the boundary should not.
 
-## Safe shape
+```text
+authenticated actor -> scoped order lookup -> refund-guard policy check -> idempotent provider call -> persisted refund result
+```
 
-1. The agent may supply only `amount` and `reason`.
-2. Your server loads trusted order state from the database.
+## Safe shapes
+
+### Server-scoped order
+
+1. Your app already knows the order from the route, session, ticket, or backend context.
+2. The agent supplies only `amount` and `reason`.
 3. Your server creates a scoped refund tool with SKU, transaction ID, amount paid, amount already refunded, purchase date, and refund status.
 4. `refund-guard` validates the request.
 5. Your provider call receives the validated amount and uses an idempotency key.
 6. Your database records the provider result and increments the persisted refunded amount.
 
+### Agent-selected order reference
+
+1. The agent may supply `orderId`, `amount`, and `reason`.
+2. Your server treats `orderId` as a lookup hint, not trusted refund data.
+3. Your server resolves the order through user, ticket, tenant, admin, or backend scope.
+4. `refund-guard` receives only trusted order facts and validates the refund policy.
+5. Your provider call receives the validated amount and uses an idempotency key.
+
 Never let the agent provide transaction IDs, paid amounts, refunded amounts, SKU, purchase date, or refund timestamps.
+
+## What refund-guard owns
+
+- Finite positive amount checks.
+- Amount paid and remaining balance caps.
+- Already-refunded, refund-window, and non-refundable-SKU denials.
+- Allowed reason and manual-review threshold checks.
+- No provider call when policy denies the refund.
+
+Your app still owns auth, scoped order lookup, fresh database state, provider idempotency, persisted refund records, audit/manual review, and broader fraud/compliance/chargeback/accounting risk.
 
 ## Agent adapters
 

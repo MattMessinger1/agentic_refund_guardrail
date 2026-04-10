@@ -16,6 +16,30 @@ If you just want to see the library run, start with the [toy examples](../exampl
 
 ---
 
+## Paste this into Claude or Codex
+
+Use this prompt when you want a coding agent to wire `refund-guard` into an existing app:
+
+```text
+Inspect this app for every code path that can trigger a refund. Do not change unrelated behavior.
+
+Integrate refund-guard as a server-side policy layer before any Stripe/PayPal/Shopify/custom refund call:
+- load the real order or charge from the database before creating the refund tool
+- never let the model supply transaction IDs, SKUs, amount paid, amount already refunded, purchase date, or refund status
+- give the AI tool only amount and reason
+- pass amountPaidMinorUnits/amount_paid_minor_units and amountRefundedMinorUnits/amount_refunded_minor_units from database state
+- pass refundedAt/refunded_at for fully refunded orders
+- keep allowed refund reasons aligned between the agent tool schema and refund-guard policy
+- forward the validated amount into the provider call
+- keep provider secrets server-side
+- use idempotency keys or existing retry protection where the provider supports it
+- add or update fake-provider tests for approved, denied, already-refunded, partial-refund, and disallowed-reason cases
+
+After the change, summarize every guarded refund path and any remaining unguarded refund path.
+```
+
+---
+
 ## Before you start
 
 Grep your codebase for every place that triggers a refund (e.g. `stripe.refunds.create`, `refund`, your edge function name). We found **two** separate code paths in our app and almost missed one. Every path needs the guard -- one unguarded path defeats the purpose.

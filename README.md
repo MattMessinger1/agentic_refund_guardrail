@@ -7,16 +7,16 @@
 
 If your AI agent can trigger refunds, do not hand it a raw Stripe/PayPal/Shopify refund function.
 
-**refund-guard** is a deterministic refund-policy gate between trusted order data and your refund provider. Your app resolves the real order first; `refund-guard` checks policy; your Stripe/PayPal/Shopify/custom refund code runs only if the request is approved.
+An AI refund agent needs a safety map, not just a refund function. **refund-guard** fully handles one critical box in that map: the refund-policy gate after trusted order data is loaded. This repo also names the other boxes your app, provider, database, and process must own before agents can move money.
 
-`refund-guard` starts after trusted order data is loaded. If your agent supplies orderId, treat it as a lookup hint, not trusted refund data.
+**Design rule:** 100% is Pass. 99% is Fail. `refund-guard` only claims the security boxes it can enforce completely.
 
 ## Why use this
 
-- The model cannot control trusted refund fields: transaction IDs, SKUs, paid amounts, prior refunds, purchase dates, or refund status.
-- Policy checks run before your provider function: refund windows, remaining balance, final-sale SKUs, allowed reasons, and manual-review thresholds.
-- Common agent footguns are handled: stale partial-refund state, non-finite amounts, reason drift, and overlapping TypeScript retries.
-- The refund safety map and policy doctor help you copy and test the safe shape before touching real money.
+- **Agent input boundary:** once your app creates the scoped refund tool, the model can request only `amount` and `reason`.
+- **Refund-policy enforcement:** amount validity, paid/remaining caps, refund windows, final-sale SKUs, allowed reasons, and manual-review thresholds.
+- **Provider invocation gate:** your provider function is not called unless policy passes.
+- **Security map:** the repo shows the other boxes you must own instead of pretending this package handles them.
 
 ## Where it fits
 
@@ -24,18 +24,30 @@ If your AI agent can trigger refunds, do not hand it a raw Stripe/PayPal/Shopify
 AI agent -> tool handler -> resolve trusted order -> refund-guard -> refund provider -> update DB
 ```
 
-## Refund safety map
+## Agentic refund security map
 
-- **Your app owns:** authenticated actor, scoped order lookup, and fresh order/refund state.
-- **refund-guard owns:** amount validity, remaining balance, refund window, non-refundable SKUs, allowed reasons, manual-review threshold, and no provider call on denial.
-- **Your app/provider/process owns:** idempotency, persisted refund results, audit logs, approval workflows, and broader fraud/chargeback/compliance/tax/accounting/marketplace risk.
+MECE here means every security box has one clear owner. `refund-guard` either owns a box at 100%, or it does not own that box.
+
+```mermaid
+flowchart LR
+  A["1. Tool access control<br/>App owns"] --> B["2. Order scope and ownership<br/>App owns"]
+  B --> C["3. Authoritative refund facts<br/>App/database/provider owns"]
+  C --> D["4. Agent input boundary<br/>refund-guard owns 100%"]
+  D --> E["5. Refund-policy enforcement<br/>refund-guard owns 100%"]
+  E --> F["6. Provider invocation gate<br/>refund-guard owns denial gate"]
+  F --> G["7. Provider execution safety<br/>App/provider owns"]
+  G --> H["8. State consistency and persistence<br/>App/database owns"]
+  H --> I["9. Evidence, exceptions, and human review<br/>App/process owns"]
+  I --> J["10. Auditability and accountability<br/>App/process owns"]
+  J --> K["11. Fraud, abuse, and compliance risk<br/>App/process owns"]
+```
 
 ## Good fit
 
 - You are prototyping or shipping an AI support agent that can trigger refunds.
 - Your refund rules live in prompts, scattered `if` statements, or provider-call code.
 - Your server can load trusted order data through user, ticket, tenant, admin, or backend scope.
-- You need a deterministic refund-policy gate and safety checklist before building a custom refund-policy service.
+- You need a package-enforced policy gate plus a full security map before building a custom refund-policy service.
 - Your app has refund windows, partial refunds, final-sale SKUs, allowed reasons, or manual-review thresholds.
 
 Payment providers protect against *technically* invalid refunds. They do not know your business rules. `refund-guard` is the thin layer where those rules live.
@@ -47,7 +59,7 @@ Payment providers protect against *technically* invalid refunds. They do not kno
 - Refund code runs client-side. Provider secrets and refund calls belong on your server.
 - Your app cannot verify order scope before refunding, or plans to trust agent-supplied order metadata.
 - Your backend already has equivalent tested refund-policy enforcement.
-- You need auth, order ownership, provider idempotency, database locking, fraud, compliance, chargeback, or risk infrastructure handled by this package.
+- You need this package to own auth, order ownership, provider idempotency, persistence, audit, review, fraud, compliance, chargeback, or risk infrastructure.
 
 ## How to use this in 10 minutes
 
@@ -60,14 +72,25 @@ Payment providers protect against *technically* invalid refunds. They do not kno
 
 Using Claude or Codex to wire this into an existing app? Start with the prompt in the [Integration Guide](docs/INTEGRATION_GUIDE.md#paste-this-into-claude-or-codex).
 
-## When to think about refund safety again
+## Security categories to understand
 
-`refund-guard` handles the refund-policy box. It is not your whole payments risk system. Recheck your design when:
+Any unauthorized refund or refund fraud is a real problem from day one. Before agents can move money, every category needs a 100% owner.
 
-- Refund amounts or volume grow enough that abuse would hurt.
-- You need audit logs, approval queues, role-based permissions, or support review.
-- You need fraud, chargeback, compliance, tax/accounting, sanctions/KYC/AML, or marketplace controls.
-- More than one service can issue refunds and needs shared locking or idempotency.
+| Category | Owner | Covered by refund-guard? |
+|----------|-------|---------------------------|
+| Tool access control | App/framework | No |
+| Order scope and ownership | App | No |
+| Authoritative refund facts | App/database/provider | No |
+| Agent input boundary | `refund-guard` | Yes, 100% |
+| Refund-policy enforcement | `refund-guard` | Yes, 100% |
+| Provider invocation gate | `refund-guard` + app | Yes for denial gate; no for provider implementation |
+| Provider execution safety | App/provider | No |
+| State consistency and persistence | App/database | No |
+| Evidence, exceptions, and human review | App/process | No |
+| Auditability and accountability | App/process | No |
+| Fraud, abuse, and compliance risk | App/process | No |
+
+See the [Integration Guide](docs/INTEGRATION_GUIDE.md#the-mece-agentic-refund-security-map) for how vibe builders can solve the boxes this package does not cover.
 
 ## Install
 

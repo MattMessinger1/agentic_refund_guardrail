@@ -8,6 +8,8 @@ This is an adapter example: it shows where `refund-guard` fits inside a Vercel A
 - **Copy this if:** you are vibe-coding an AI support route with Vercel AI SDK.
 - **What it does not handle:** real database functions, real auth, provider credentials, or production refund persistence.
 
+This covers the agent input boundary and refund-policy gate, not the whole MECE security map.
+
 The model can call `refundOrder` with:
 
 - `amount`: a positive number, or `null` for full remaining balance

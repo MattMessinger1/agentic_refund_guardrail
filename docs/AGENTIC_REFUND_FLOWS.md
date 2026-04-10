@@ -4,10 +4,12 @@ Use these patterns when an AI agent can trigger refunds.
 
 Use this if you are wiring a refund-capable agent into OpenAI, Vercel AI SDK, LangChain, MCP, Stripe, Supabase, Shopify, or a custom backend that can load trusted order data. Do not use this for manual refund dashboards, read-only agents, client-side refund code, apps that cannot verify order scope, or systems that already enforce the same policy server-side.
 
-`refund-guard` is the refund-policy box in the larger refund safety map. The framework can change; the boundary should not.
+An AI refund agent needs a safety map, not just a refund function. `refund-guard` fully handles the refund-policy gate after trusted order data is loaded; your app, provider, database, and process own the surrounding boxes.
+
+**Design rule:** 100% is Pass. 99% is Fail. See the [MECE security map](INTEGRATION_GUIDE.md#the-mece-agentic-refund-security-map) before moving real money.
 
 ```text
-authenticated actor -> scoped order lookup -> refund-guard policy check -> idempotent provider call -> persisted refund result
+tool access -> order scope -> trusted facts -> refund-guard policy gate -> provider execution -> persistence/review/risk controls
 ```
 
 ## Safe shapes
@@ -39,7 +41,7 @@ Never let the agent provide transaction IDs, paid amounts, refunded amounts, SKU
 - Allowed reason and manual-review threshold checks.
 - No provider call when policy denies the refund.
 
-Your app still owns auth, scoped order lookup, fresh database state, provider idempotency, persisted refund records, audit/manual review, and broader fraud/compliance/chargeback/accounting risk.
+Your app still owns tool access control, order scope and ownership, authoritative refund facts, provider execution safety, state consistency and persistence, evidence/review, auditability, and fraud/abuse/compliance risk. The full MECE map lives in the [Integration Guide](INTEGRATION_GUIDE.md#the-mece-agentic-refund-security-map).
 
 ## Agent adapters
 

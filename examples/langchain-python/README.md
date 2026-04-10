@@ -6,6 +6,8 @@ Wrap `refund-guard` inside a LangChain tool so the model can ask for a refund wi
 - **Copy this if:** your Python agent uses LangChain tools and can trigger refunds from a backend.
 - **What it does not handle:** real database access, real Stripe calls, auth checks, or idempotency storage.
 
+`order_id` remains realistic for LangChain, but order scope and ownership are app-owned boxes that must pass before `refund-guard` runs.
+
 The model sees:
 
 - `order_id`

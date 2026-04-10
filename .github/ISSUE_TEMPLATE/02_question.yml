@@ -1,12 +1,12 @@
 name: Question
-description: Ask how to use the library (integration, policy YAML, Stripe, etc.)
+description: Ask whether refund-guard fits your agentic refund flow or how to wire it into your backend
 title: "[question] "
 labels: ["question"]
 body:
   - type: markdown
     attributes:
       value: |
-        Check the [README quickstart](https://github.com/MattMessinger1/agentic_refund_guardrail#quickstart) first — it covers the happy path.
+        Check the [README](https://github.com/MattMessinger1/agentic_refund_guardrail#what-this-repo-does-for-you) and [agentic flow recipes](https://github.com/MattMessinger1/agentic_refund_guardrail/blob/main/docs/AGENTIC_REFUND_FLOWS.md) first. This template is best for fit, integration, policy, provider, or framework questions.
   - type: textarea
     id: question
     attributes:

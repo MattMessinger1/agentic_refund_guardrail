@@ -2,6 +2,16 @@
 
 This guide is based on actually dogfooding refund-guard in a production MCP server with Supabase and Stripe. It covers the steps between "I installed the package" and "it works."
 
+Use this if your AI agent can trigger refunds and you want a server-side policy check before money moves. Do not use this for manual refund dashboards, read-only agents, browser-side refund code, or backends that already enforce equivalent refund policy.
+
+Mental model:
+
+```text
+AI agent -> tool handler -> load order from DB -> refund-guard -> refund provider -> update DB
+```
+
+The agent may supply only `amount` and `reason`. Your server supplies transaction ID, SKU, amount paid, amount already refunded, purchase date, and refund status.
+
 If you just want to see the library run, start with the [toy examples](../examples/) first.
 
 ---

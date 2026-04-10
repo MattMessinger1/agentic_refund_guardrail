@@ -9,7 +9,7 @@ The repo already includes CI (`.github/workflows/ci.yml`), issue templates, and 
 On the repo home page, click **⚙️** next to **About**.
 
 - **Description** (suggested):  
-  `Safe refund policy layer for AI agents — Python + TypeScript. Same behavior, shared tests.`
+  `Server-side refund policy checks between an AI tool call and your refund provider.`
 - **Website** (optional): PyPI or npm package URL once published.
 - **Topics** (suggested):  
   `refunds`, `stripe`, `agents`, `guardrails`, `python`, `typescript`, `mcp`, `safety`, `pypi`, `npm`

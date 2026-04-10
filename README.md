@@ -5,23 +5,39 @@
 [![npm](https://img.shields.io/npm/v/@mattmessinger/refund-guard)](https://www.npmjs.com/package/@mattmessinger/refund-guard)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-If your AI agent can call `stripe.Refund.create()`, it can try to refund anything -- wrong transaction, wrong amount, hallucinated order.
+If your AI agent can trigger refunds, do not hand it a raw Stripe/PayPal/Shopify refund function.
 
-**refund-guard** adds one step: load a real order from your database, create a scoped refund tool, and give that tool to the agent. The agent can only refund *that order*, within *your rules*.
+**refund-guard** is a small server-side policy layer between an untrusted AI tool call and your refund provider. The agent may supply only `amount` and `reason`; your server supplies order truth from the database, and `refund-guard` checks policy before Stripe/PayPal/Shopify/custom refund code runs.
+
+## What this repo does for you
+
+- Turns one real database order into a scoped refund tool for your agent.
+- Keeps transaction IDs, SKUs, paid amounts, already-refunded amounts, purchase dates, and refund status out of model control.
+- Blocks bad refund attempts before your provider function runs: expired windows, over-refunds, final-sale SKUs, disallowed reasons, manual-review thresholds, and weird model outputs.
+- Gives copy-paste patterns for OpenAI Responses API, Vercel AI SDK, LangChain, MCP, Stripe, Supabase, Shopify, Python, and TypeScript.
+- Lets you test refund policy with fake provider calls before touching real money.
+
+## Where it fits
+
+```text
+AI agent -> tool handler -> load order from DB -> refund-guard -> refund provider -> update DB
+```
 
 ## Who this is for
 
-This library is for developers building AI agents -- chatbots, MCP servers, tool-calling LLMs -- that can trigger refunds. If your agent has a "refund" tool, this library makes that tool safe. Works with any payment provider: Stripe, PayPal, Shopify, or a custom backend.
+- Developers vibe-coding AI support agents, chatbots, MCP servers, or tool-calling LLM apps that can issue refunds.
+- Teams that want the safe copy-paste shape: model chooses `amount` and `reason`; server chooses everything else.
+- Apps with refund windows, final-sale products, partial refunds, allowed refund reasons, human-review thresholds, or custom payment backends.
+- Python or TypeScript backends using Stripe, PayPal, Shopify, Supabase Edge Functions, or their own refund API.
 
-Payment providers protect against *technically* invalid refunds (can't refund more than the charge, can't double-refund a payment intent). But they have no concept of *your* business rules: which products are refundable, how long the refund window is, or whether this particular order should be refunded at all. Without this library, your agent supplies the transaction ID and amount directly. With it, your server loads the real order, creates a scoped tool, and the agent can only operate inside your policy.
-
-The library is most powerful when you have multiple SKUs with different refund windows, partial refunds, or a custom payment backend with no built-in guardrails. But even for simple single-product full-refund flows, the refund window enforcement and structured denial reasons don't exist anywhere else in the stack.
+Payment providers protect against *technically* invalid refunds. They do not know your business rules. `refund-guard` is the thin layer where those rules live.
 
 ## Who this is NOT for
 
-- **Manual refund dashboards.** If a human reviews every refund in a UI, they *are* the guardrail. This library is for automated/agent-driven flows.
-- **Read-only agents.** If your agent can look up orders but never triggers a refund, there's nothing to guard.
-- **Teams that already enforce all business rules server-side before the refund call.** If your backend already checks the refund window, remaining balance, and double-refund status before calling Stripe, this library would duplicate that logic. It's meant to *be* that layer, not wrap another one.
+- **Manual refund dashboards.** If a human reviews every refund before money moves, they are already the guardrail.
+- **Read-only agents.** If your agent can inspect orders but cannot trigger refunds, there is no refund tool to guard.
+- **Teams with an existing refund-policy engine.** If your backend already checks refund windows, remaining balance, double-refund state, final-sale SKUs, and reason eligibility before calling the provider, this may duplicate that layer.
+- **Client-side refund flows.** Refund calls and provider secrets belong on your server, never in a browser or mobile client.
 
 ## Install
 
@@ -31,6 +47,8 @@ npm install @mattmessinger/refund-guard  # TypeScript / Node
 ```
 
 ## Quickstart
+
+This is the safe copy-paste shape: load the order yourself, create a scoped tool, and let the agent supply only amount and reason.
 
 ```python
 from refund_guard import Refunds

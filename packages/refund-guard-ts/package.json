@@ -1,7 +1,7 @@
 {
   "name": "@mattmessinger/refund-guard",
   "version": "0.3.0",
-  "description": "TypeScript port of refund-guard — same behavior as the Python package (shared parity fixtures).",
+  "description": "Server-side refund policy checks between an AI tool call and your refund provider.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

@@ -1,8 +1,8 @@
 blank_issues_enabled: true
 contact_links:
   - name: README / Quickstart
-    url: https://github.com/MattMessinger1/agentic_refund_guardrail#quickstart
-    about: New to the library — start here.
+    url: https://github.com/MattMessinger1/agentic_refund_guardrail#what-this-repo-does-for-you
+    about: New to the library — start with what it does, who it is for, and who it is not for.
   - name: Contributing
     url: https://github.com/MattMessinger1/agentic_refund_guardrail/blob/main/CONTRIBUTING.md
     about: How to run tests and change parity fixtures.

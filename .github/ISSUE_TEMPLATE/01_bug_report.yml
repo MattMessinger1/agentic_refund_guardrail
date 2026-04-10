@@ -1,12 +1,12 @@
 name: Bug report
-description: Something is broken or behaves differently in Python vs TypeScript
+description: Report incorrect refund decisions, provider-call safety bugs, or Python/TypeScript behavior drift
 title: "[bug] "
 labels: ["bug"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for the report. If Python and TypeScript disagree, mention **both** — we use shared fixtures in `contracts/parity/cases.json`.
+        Thanks for the report. Use this for behavior bugs: wrong approval/denial, provider called when it should not be, partial-refund balance issues, or Python/TypeScript drift.
   - type: dropdown
     id: runtime
     attributes:

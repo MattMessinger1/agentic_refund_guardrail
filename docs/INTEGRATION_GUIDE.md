@@ -40,9 +40,11 @@ MECE here means every security category has one clear owner. If a category is at
 
 ---
 
-## Paste this into Claude or Codex
+## Copy/paste prompts for Claude or Codex
 
-Use this prompt when you want a coding agent to wire `refund-guard` into an existing app:
+Use these prompts when you want a coding agent to wire `refund-guard` into an existing app and then help you close the rest of the MECE security map.
+
+### Prompt 1: Install the refund-policy gate
 
 ```text
 Inspect this app for every code path that can trigger a refund. Do not change unrelated behavior.
@@ -50,9 +52,6 @@ Inspect this app for every code path that can trigger a refund. Do not change un
 Integrate refund-guard as a server-side policy gate after trusted order data is loaded and before any Stripe/PayPal/Shopify/custom refund call:
 - inspect every refund path and every order lookup path
 - if a tool accepts orderId, treat it as a lookup hint and resolve it through user/session/ticket/tenant/admin scope before creating the refund tool
-- do not treat refund-guard as auth, order ownership, fraud, compliance, provider idempotency, or database locking
-- classify each MECE security category as covered 100% by refund-guard, handled 100% by app/provider/process, or missing
-- do not mark anything under 100% as passing for money movement
 - load the real order or charge from the database before creating the refund tool
 - never let the model supply transaction IDs, SKUs, amount paid, amount already refunded, purchase date, or refund status
 - use server-scoped tool schemas with only amount and reason when possible
@@ -65,7 +64,48 @@ Integrate refund-guard as a server-side policy gate after trusted order data is 
 - update persisted refunded amount only after provider success
 - add or update fake-provider tests for approved, denied, already-refunded, partial-refund, and disallowed-reason cases
 
-After the change, summarize every guarded refund path, unguarded refund path, scoped order lookup, remaining unscoped order lookup, and any missing category that blocks real-money refunds.
+After the change, summarize every guarded refund path, unguarded refund path, scoped order lookup, and remaining unscoped order lookup.
+```
+
+### Prompt 2: Complete the security map
+
+```text
+Review this app's agentic refund flow against the MECE security map in refund-guard's Integration Guide. Do not treat refund-guard as a complete payments-risk system.
+
+Classify each category as one of:
+- covered 100% by refund-guard
+- handled 100% by app/provider/process
+- missing
+
+Do not mark anything under 100% as passing for money movement.
+
+Evaluate all 11 categories:
+1. Tool access control
+2. Order scope and ownership
+3. Authoritative refund facts
+4. Agent input boundary
+5. Refund-policy enforcement
+6. Provider invocation gate
+7. Provider execution safety
+8. State consistency and persistence
+9. Evidence, exceptions, and human review
+10. Auditability and accountability
+11. Fraud, abuse, and compliance risk
+
+For every missing non-package category, produce a concrete implementation direction:
+- tool access control: auth/session/role checks before tool execution
+- order scope and ownership: scoped DB/provider queries, never orderId alone
+- authoritative refund facts: fresh reads from DB/provider at refund time
+- provider execution safety: server-side secrets, validated amount forwarding, idempotency keys, retry/error behavior
+- state consistency and persistence: refund attempts/results, transactions/locks/single refund service
+- evidence, exceptions, and human review: evidence checks, narrow reason enums, approval queues
+- auditability and accountability: actor/order/amount/reason/decision/provider/timestamp logs
+- fraud, abuse, and compliance risk: dedicated risk, compliance, chargeback, accounting, marketplace, and regulated-product controls
+
+At the end, list:
+- categories implemented in this change
+- categories only identified but not implemented
+- blockers before real-money refunds can move
 ```
 
 ---

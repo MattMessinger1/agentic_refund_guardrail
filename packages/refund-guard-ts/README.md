@@ -29,7 +29,7 @@ An AI refund agent needs a safety map, not just a refund function. `refund-guard
 - Your backend already has equivalent tested refund-policy enforcement.
 - You need auth, order ownership, provider idempotency, database locking, fraud, compliance, chargeback, or risk infrastructure handled by this package.
 
-For the full MECE security map and integration prompt, see the [GitHub README](https://github.com/MattMessinger1/agentic_refund_guardrail) and [Integration Guide](https://github.com/MattMessinger1/agentic_refund_guardrail/blob/main/docs/INTEGRATION_GUIDE.md#the-mece-agentic-refund-security-map).
+For the full MECE security map and both copy/paste prompts, see the [GitHub README](https://github.com/MattMessinger1/agentic_refund_guardrail) and [Integration Guide](https://github.com/MattMessinger1/agentic_refund_guardrail/blob/main/docs/INTEGRATION_GUIDE.md#copy-paste-prompts-for-claude-or-codex).
 
 ## Install
 

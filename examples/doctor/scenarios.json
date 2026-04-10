@@ -1,0 +1,43 @@
+{
+  "scenarios": [
+    {
+      "id": "allowed-full-refund",
+      "sku": "success_fee",
+      "transaction_id": "pi_doctor_001",
+      "amount_paid_minor_units": 4000,
+      "amount_refunded_minor_units": 0,
+      "purchased_at": "2026-06-10T12:00:00Z",
+      "clock_now": "2026-06-15T12:00:00Z",
+      "reason": "provider_cancelled"
+    },
+    {
+      "id": "needs-human-review",
+      "sku": "success_fee",
+      "transaction_id": "pi_doctor_002",
+      "amount_paid_minor_units": 9000,
+      "purchased_at": "2026-06-10T12:00:00Z",
+      "clock_now": "2026-06-15T12:00:00Z",
+      "amount": 75,
+      "reason": "provider_cancelled"
+    },
+    {
+      "id": "bad-reason",
+      "sku": "success_fee",
+      "transaction_id": "pi_doctor_003",
+      "amount_paid_minor_units": 4000,
+      "purchased_at": "2026-06-10T12:00:00Z",
+      "clock_now": "2026-06-15T12:00:00Z",
+      "amount": 20,
+      "reason": "changed_mind"
+    },
+    {
+      "id": "final-sale",
+      "sku": "final_sale",
+      "transaction_id": "pi_doctor_004",
+      "amount_paid_minor_units": 4000,
+      "purchased_at": "2026-06-10T12:00:00Z",
+      "clock_now": "2026-06-15T12:00:00Z",
+      "amount": 20
+    }
+  ]
+}

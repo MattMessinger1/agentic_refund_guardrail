@@ -10,6 +10,7 @@ const casesPath = join(__dirname, "../../../contracts/parity/cases.json");
 
 type Step = {
   amount: number | null;
+  reason?: string;
   provider: string;
   expect: Record<string, unknown>;
   expect_detail_contains?: string;
@@ -24,6 +25,8 @@ type Case = {
   transaction_id: string;
   amount_paid?: number;
   amount_paid_minor_units?: number;
+  amount_refunded?: number;
+  amount_refunded_minor_units?: number;
   purchased_at: string;
   purchased_at_is_naive?: boolean;
   currency?: string;
@@ -67,8 +70,8 @@ describe("parity fixtures (TypeScript)", () => {
   };
 
   it("fixture version", () => {
-    expect(doc.version).toBe(1);
-    expect(doc.tests.length).toBe(20);
+    expect(doc.version).toBe(2);
+    expect(doc.tests.length).toBe(26);
   });
 
   for (const case_ of doc.tests) {
@@ -100,6 +103,18 @@ describe("parity fixtures (TypeScript)", () => {
         toolOpts.amountPaid = case_.amount_paid;
       }
 
+      if (
+        case_.amount_refunded != null &&
+        case_.amount_refunded_minor_units != null
+      ) {
+        toolOpts.amountRefunded = case_.amount_refunded;
+        toolOpts.amountRefundedMinorUnits = case_.amount_refunded_minor_units;
+      } else if (case_.amount_refunded_minor_units != null) {
+        toolOpts.amountRefundedMinorUnits = case_.amount_refunded_minor_units;
+      } else if (case_.amount_refunded != null) {
+        toolOpts.amountRefunded = case_.amount_refunded;
+      }
+
       if (case_.refunded_at !== undefined) {
         toolOpts.refundedAt =
           case_.refunded_at != null ? new Date(case_.refunded_at) : null;
@@ -115,8 +130,11 @@ describe("parity fixtures (TypeScript)", () => {
       for (const step of case_.steps) {
         refund.tool.setProviderRefundFn(makeProvider(step.provider, calls));
         const result = (step.amount == null
-          ? await refund()
-          : await refund(step.amount)) as Record<string, unknown>;
+          ? await refund(undefined, { reason: step.reason })
+          : await refund(step.amount, { reason: step.reason })) as Record<
+          string,
+          unknown
+        >;
         assertSubset(step.expect, result);
 
         if (step.expect_detail_contains) {

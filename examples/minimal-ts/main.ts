@@ -38,10 +38,13 @@ async function main(): Promise<void> {
     providerRefundFn: fakeProvider,
   });
 
-  console.log("1) Full refund, no amount (should approve $100):");
+  console.log("1) Partial refund (should approve $60):");
+  console.log(await refund(60));
+
+  console.log("\n2) No amount refunds the remaining balance (should approve $40):");
   console.log(await refund());
 
-  console.log("\n2) Another full refund (should deny — already refunded):");
+  console.log("\n3) No remaining balance (should deny as invalid_amount):");
   console.log(await refund());
 }
 

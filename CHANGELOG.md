@@ -4,6 +4,23 @@ All notable changes to **refund-guard** are tracked here. Version numbers apply 
 
 ## [Unreleased]
 
+### Added
+
+- Persisted partial-refund state via `amount_refunded` / `amount_refunded_minor_units` in Python and `amountRefunded` / `amountRefundedMinorUnits` in TypeScript.
+- Optional policy fields: `refundable`, `max_refund_minor_units`, `manual_approval_required_over_minor_units`, and `allowed_reasons`.
+- Typed refund result exports for both packages.
+- Policy doctor CLI: `refund-guard doctor <policy.yaml> <scenarios.json>` and npm bin support.
+- Agentic refund flow examples for OpenAI Responses API, Vercel AI SDK, LangChain, and MCP.
+- Agentic flow recipes covering Stripe, Supabase Edge Functions, and Shopify Admin patterns.
+- 6 new parity test cases (26 total).
+
+### Fixed
+
+- Deny non-finite refund amounts before the provider is called.
+- Deny invalid configured paid/refunded amounts during tool construction.
+- Serialize concurrent TypeScript calls so overlapping requests validate against updated in-memory balance.
+- Correct minimal examples so the expected second/third results match actual no-arg remaining-balance behavior.
+
 ## [0.3.0] — 2026-04-07
 
 ### Added

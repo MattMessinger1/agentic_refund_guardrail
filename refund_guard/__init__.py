@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Union
@@ -9,8 +10,23 @@ from typing import Any, Callable, Union
 from refund_guard._messages import DENIAL_MESSAGES
 from refund_guard._policy import load_policy
 from refund_guard._tool import RefundTool
+from refund_guard._types import (
+    ApprovedRefundResult,
+    DenialReason,
+    DeniedRefundResult,
+    ErrorRefundResult,
+    RefundResult,
+)
 
-__all__ = ["Refunds", "DENIAL_MESSAGES"]
+__all__ = [
+    "Refunds",
+    "DENIAL_MESSAGES",
+    "ApprovedRefundResult",
+    "DeniedRefundResult",
+    "DenialReason",
+    "ErrorRefundResult",
+    "RefundResult",
+]
 
 
 class Refunds:
@@ -39,6 +55,8 @@ class Refunds:
         transaction_id: str,
         amount_paid: float | None = None,
         amount_paid_minor_units: int | None = None,
+        amount_refunded: float | None = None,
+        amount_refunded_minor_units: int | None = None,
         purchased_at: datetime,
         provider_refund_fn: Callable[[float, str, str], Any],
         currency: str = "usd",
@@ -50,24 +68,34 @@ class Refunds:
 
         Provide exactly one of ``amount_paid`` (major units, e.g. dollars) or
         ``amount_paid_minor_units`` (e.g. cents -- divided by 100 internally).
+        If the order has previous partial refunds, provide exactly one of
+        ``amount_refunded`` or ``amount_refunded_minor_units`` so a fresh
+        per-request tool starts with the database's persisted balance.
 
         Raises ``ValueError`` if the SKU is not in the loaded policy or if
         amount parameters are invalid.
         """
-        if amount_paid is not None and amount_paid_minor_units is not None:
-            raise ValueError(
-                "Provide amount_paid or amount_paid_minor_units, not both"
-            )
-        if amount_paid is None and amount_paid_minor_units is None:
-            raise ValueError(
-                "Provide either amount_paid or amount_paid_minor_units"
-            )
-
-        resolved_amount = (
-            float(amount_paid)
-            if amount_paid is not None
-            else float(amount_paid_minor_units) / 100  # type: ignore[arg-type]
+        resolved_amount = _resolve_money_options(
+            "amount_paid",
+            amount_paid,
+            "amount_paid_minor_units",
+            amount_paid_minor_units,
+            required=True,
         )
+        total_refunded = _resolve_money_options(
+            "amount_refunded",
+            amount_refunded,
+            "amount_refunded_minor_units",
+            amount_refunded_minor_units,
+            required=False,
+        )
+
+        if resolved_amount <= 0:
+            raise ValueError("amount_paid must be greater than zero")
+        if total_refunded < 0:
+            raise ValueError("amount_refunded must be zero or greater")
+        if total_refunded > resolved_amount:
+            raise ValueError("amount_refunded cannot exceed amount_paid")
 
         if sku not in self._policies:
             known = ", ".join(sorted(self._policies))
@@ -86,4 +114,26 @@ class Refunds:
             policy=self._policies[sku],
             now_fn=now_fn,
             refunded_at=refunded_at,
+            total_refunded=total_refunded,
         )
+
+
+def _resolve_money_options(
+    major_name: str,
+    major: float | None,
+    minor_name: str,
+    minor: int | None,
+    *,
+    required: bool,
+) -> float:
+    if major is not None and minor is not None:
+        raise ValueError(f"Provide {major_name} or {minor_name}, not both")
+    if major is None and minor is None:
+        if required:
+            raise ValueError(f"Provide either {major_name} or {minor_name}")
+        return 0.0
+
+    resolved = float(major) if major is not None else float(minor) / 100
+    if not math.isfinite(resolved):
+        raise ValueError(f"{major_name} must be a finite number")
+    return resolved

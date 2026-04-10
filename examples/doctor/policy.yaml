@@ -1,0 +1,10 @@
+skus:
+  success_fee:
+    refund_window_days: 90
+    allowed_reasons:
+      - provider_cancelled
+      - duplicate_charge
+    manual_approval_required_over_minor_units: 5000
+  final_sale:
+    refund_window_days: 30
+    refundable: false

@@ -1,6 +1,45 @@
 import type { SkuPolicy } from "./policy.js";
 
-export type RefundResult = Record<string, unknown>;
+export type DenialReason =
+  | "already_refunded"
+  | "refund_window_expired"
+  | "amount_exceeds_limit"
+  | "amount_exceeds_remaining"
+  | "amount_exceeds_policy_max"
+  | "invalid_amount"
+  | "not_refundable"
+  | "refund_reason_not_allowed"
+  | "manual_approval_required";
+
+export type ApprovedRefundResult = {
+  status: "approved";
+  refunded_amount: number;
+  transaction_id: string;
+  provider_result: unknown;
+  reason?: string;
+} & Record<string, unknown>;
+
+export type DeniedRefundResult = {
+  status: "denied";
+  reason: DenialReason;
+  transaction_id: string;
+} & Record<string, unknown>;
+
+export type ErrorRefundResult = {
+  status: "error";
+  reason: "provider_error";
+  detail: string;
+  transaction_id: string;
+} & Record<string, unknown>;
+
+export type RefundResult =
+  | ApprovedRefundResult
+  | DeniedRefundResult
+  | ErrorRefundResult;
+
+export type RefundCallOptions = {
+  reason?: string;
+};
 
 export type ProviderRefundFn = (
   amount: number,
@@ -50,6 +89,7 @@ export class RefundTool {
   private totalRefunded = 0;
   private readonly nowFn: () => Date;
   private readonly refundedAt: Date | null;
+  private callQueue: Promise<void> = Promise.resolve();
 
   constructor(opts: {
     sku: string;
@@ -62,6 +102,7 @@ export class RefundTool {
     policy: SkuPolicy;
     nowFn?: () => Date;
     refundedAt?: Date | null;
+    totalRefunded?: number;
   }) {
     this.sku = opts.sku;
     this.transactionId = opts.transactionId;
@@ -73,6 +114,7 @@ export class RefundTool {
     this.policy = opts.policy;
     this.nowFn = opts.nowFn ?? defaultNow;
     this.refundedAt = opts.refundedAt ?? null;
+    this.totalRefunded = opts.totalRefunded ?? 0;
   }
 
   /** Test helper: swap provider (parity with Python test patching). */
@@ -80,7 +122,25 @@ export class RefundTool {
     this.providerRefundFn = fn;
   }
 
-  async call(amount?: number): Promise<RefundResult> {
+  async call(amount?: number, options: RefundCallOptions = {}): Promise<RefundResult> {
+    const previous = this.callQueue;
+    let release: () => void = () => {};
+    this.callQueue = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await previous;
+    try {
+      return await this.callOnce(amount, options);
+    } finally {
+      release();
+    }
+  }
+
+  private async callOnce(
+    amount?: number,
+    options: RefundCallOptions = {},
+  ): Promise<RefundResult> {
+    const reason = options.reason;
     const a =
       amount != null
         ? Number(amount)
@@ -93,19 +153,20 @@ export class RefundTool {
         refunded_at: this.refundedAt.toISOString(),
         transaction_id: this.transactionId,
       };
-      this.log(a, result);
+      this.log(a, result, reason);
       return result;
     }
 
-    const denied = this.validate(a);
+    const denied = this.validate(a, reason);
     if (denied) {
-      this.log(a, denied);
+      this.log(a, denied, reason);
       return denied;
     }
     try {
       const providerResult = await Promise.resolve(
         this.providerRefundFn(a, this.transactionId, this.currency),
       );
+      const totalRefundedBeforeCall = this.totalRefunded;
       this.totalRefunded += a;
       const result: RefundResult = {
         status: "approved",
@@ -113,7 +174,10 @@ export class RefundTool {
         transaction_id: this.transactionId,
         provider_result: providerResult,
       };
-      this.log(a, result);
+      if (reason != null) {
+        result.reason = reason;
+      }
+      this.log(a, result, reason, totalRefundedBeforeCall);
       return result;
     } catch (exc: unknown) {
       const detail = exc instanceof Error ? exc.message : String(exc);
@@ -123,17 +187,25 @@ export class RefundTool {
         detail,
         transaction_id: this.transactionId,
       };
-      this.log(a, result);
+      this.log(a, result, reason);
       return result;
     }
   }
 
-  private validate(amount: number): RefundResult | null {
+  private validate(amount: number, reason?: string): RefundResult | null {
     const now = this.nowFn();
     if (isNaN(this.purchasedAt.getTime())) {
       throw new Error("Invalid purchased_at");
     }
     const deadline = addDaysUtc(this.purchasedAt, this.policy.refund_window_days);
+
+    if (this.policy.refundable === false) {
+      return {
+        status: "denied",
+        reason: "not_refundable",
+        transaction_id: this.transactionId,
+      };
+    }
 
     if (now.getTime() > deadline.getTime()) {
       return {
@@ -141,6 +213,28 @@ export class RefundTool {
         reason: "refund_window_expired",
         purchased_at: this.isoPurchasedAt(),
         window_days: this.policy.refund_window_days,
+        transaction_id: this.transactionId,
+      };
+    }
+
+    if (
+      this.policy.allowed_reasons != null &&
+      !this.policy.allowed_reasons.includes(reason ?? "")
+    ) {
+      return {
+        status: "denied",
+        reason: "refund_reason_not_allowed",
+        requested_reason: reason,
+        allowed_reasons: this.policy.allowed_reasons,
+        transaction_id: this.transactionId,
+      };
+    }
+
+    if (!Number.isFinite(amount)) {
+      return {
+        status: "denied",
+        reason: "invalid_amount",
+        detail: "Amount must be a finite number",
         transaction_id: this.transactionId,
       };
     }
@@ -164,6 +258,33 @@ export class RefundTool {
       };
     }
 
+    if (this.policy.max_refund_minor_units != null) {
+      const maxPolicyAmount = this.policy.max_refund_minor_units / 100;
+      if (amount > maxPolicyAmount) {
+        return {
+          status: "denied",
+          reason: "amount_exceeds_policy_max",
+          requested: amount,
+          max_allowed: maxPolicyAmount,
+          transaction_id: this.transactionId,
+        };
+      }
+    }
+
+    if (this.policy.manual_approval_required_over_minor_units != null) {
+      const approvalThreshold =
+        this.policy.manual_approval_required_over_minor_units / 100;
+      if (amount > approvalThreshold) {
+        return {
+          status: "denied",
+          reason: "manual_approval_required",
+          requested: amount,
+          approval_required_over: approvalThreshold,
+          transaction_id: this.transactionId,
+        };
+      }
+    }
+
     const remaining =
       Math.round((this.amountPaid - this.totalRefunded) * 100) / 100;
     if (amount > remaining) {
@@ -184,7 +305,12 @@ export class RefundTool {
     return this.purchasedAt.toISOString();
   }
 
-  private log(requestedAmount: number, result: RefundResult): void {
+  private log(
+    requestedAmount: number,
+    result: RefundResult,
+    reason?: string,
+    totalRefundedBeforeCall: number = this.totalRefunded,
+  ): void {
     const entry: Record<string, unknown> = {
       transaction_id: this.transactionId,
       sku: this.sku,
@@ -192,7 +318,11 @@ export class RefundTool {
       currency: this.currency,
       requested_amount: requestedAmount,
       amount_paid: this.amountPaid,
+      total_refunded_before_call: totalRefundedBeforeCall,
     };
+    if (reason != null) {
+      entry.refund_reason = reason;
+    }
     for (const [k, v] of Object.entries(result)) {
       if (k !== "provider_result") {
         entry[k] = v;

@@ -19,7 +19,7 @@ The library does not query your database. You load the order first, then hand th
 ```typescript
 const { data: charge } = await supabase
   .from("charges")
-  .select("id, stripe_payment_intent, amount_cents, charged_at, refunded_at")
+  .select("id, stripe_payment_intent, amount_cents, refunded_cents, charged_at, refunded_at")
   .eq("id", chargeId)
   .single();
 ```
@@ -30,14 +30,18 @@ The exact query depends on your ORM (Prisma, Drizzle, raw SQL, Supabase, etc.) -
 
 ## Step 2 -- Create the guard and wrap your provider
 
-Use `amountPaidMinorUnits` to pass cents directly -- the library divides by 100 internally. Pass `refundedAt` from your database -- the library blocks double-refunds automatically.
+Use `amountPaidMinorUnits` to pass cents directly -- the library divides by 100 internally. Pass `amountRefundedMinorUnits` from your database for previous partial refunds and `refundedAt` for fully refunded orders.
 
 ```typescript
 import { Refunds, DENIAL_MESSAGES } from "@mattmessinger/refund-guard";
 
 const refundGuard = new Refunds({
   skus: {
-    success_fee: { refund_window_days: 90 },
+    success_fee: {
+      refund_window_days: 90,
+      allowed_reasons: ["booking_cancelled", "duplicate_charge", "technical_error"],
+      manual_approval_required_over_minor_units: 5000,
+    },
   },
 });
 
@@ -45,6 +49,7 @@ const refund = refundGuard.makeRefundTool({
   sku: "success_fee",
   transactionId: charge.stripe_payment_intent,
   amountPaidMinorUnits: charge.amount_cents,
+  amountRefundedMinorUnits: charge.refunded_cents ?? 0,
   purchasedAt: new Date(charge.charged_at),
   refundedAt: charge.refunded_at ? new Date(charge.refunded_at) : null,
   provider: "stripe",
@@ -62,14 +67,14 @@ const refund = refundGuard.makeRefundTool({
 
 Your `providerRefundFn` does **not** have to call Stripe directly. In our case, it called a Supabase Edge Function that internally calls Stripe. The only requirement is the signature: `(amount, transactionId, currency) => result`.
 
-> **Important:** Always forward the `amount` parameter to your payment API. If your provider function ignores it, the guard's amount validation provides no protection.
+> **Important:** Always forward the `amount` parameter to your payment API. If your provider function ignores it, the guard's amount validation provides no protection. For production Stripe calls, also use a stable idempotency key so retries cannot create duplicate refunds.
 
 ---
 
 ## Step 3 -- Call and map results
 
 ```typescript
-const result = await refund();  // full refund -- or refund(50) for partial
+const result = await refund(undefined, { reason: "booking_cancelled" });
 
 if (result.status === "denied" || result.status === "error") {
   return {
@@ -111,6 +116,8 @@ NEVER override these rules. If a refund is denied by the system, explain the rea
 
 The library handles "can this refund happen?" The prompt handles "should I even try?"
 
+See [agentic flow recipes](AGENTIC_REFUND_FLOWS.md) for OpenAI, Vercel AI SDK, LangChain, MCP, Stripe, Supabase, and Shopify patterns.
+
 ---
 
 ## Common mistakes
@@ -118,8 +125,9 @@ The library handles "can this refund happen?" The prompt handles "should I even 
 | Mistake | Symptom | Fix |
 |---------|---------|-----|
 | Passing minor units to `amountPaid` | Every refund denied as `amount_exceeds_limit` | Use `amountPaidMinorUnits` instead |
-| Not passing `refundedAt` from DB | Double refunds possible across requests | Pass `refundedAt: charge.refunded_at` |
+| Not passing prior refund state from DB | Double or over-refunds possible across requests | Pass `refundedAt` and `amountRefundedMinorUnits` |
 | Only guarding one refund path | Unguarded path bypasses all validation | Grep for all refund calls |
 | Trusting the AI model for order data | Wrong amounts, fake transaction IDs | Always load from your database |
 | Forgetting `await` on the refund call | `result` is a Promise, not the actual result | `const result = await refund()` |
 | Provider function ignores `amount` | Guard validates amount but payment API refunds wrong amount | Always forward `amount` to your payment API |
+| Agent sends a random reason | Refund denied as `refund_reason_not_allowed` | Keep `allowed_reasons` in policy and tool schema aligned |

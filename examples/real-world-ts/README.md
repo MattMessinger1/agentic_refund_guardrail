@@ -6,8 +6,8 @@ Read `handler.ts` for an annotated walkthrough of every step:
 
 1. Create the guard (module-level singleton, inline policy)
 2. Fetch order data from your database
-3. Create the guarded tool with `amountPaidMinorUnits` and `refundedAt` (the library handles cent conversion and double-refund detection)
-4. Call the tool -- no arguments for a full refund, or pass an amount for a partial refund
+3. Create the guarded tool with `amountPaidMinorUnits`, `amountRefundedMinorUnits`, and `refundedAt` (the library handles cent conversion, partial-refund balance, and double-refund detection)
+4. Call the tool -- no amount for a full remaining refund, or pass an amount for a partial refund, with a policy reason
 5. Map results using `DENIAL_MESSAGES`
 
 For the full context behind each step, see [docs/INTEGRATION_GUIDE.md](../../docs/INTEGRATION_GUIDE.md).

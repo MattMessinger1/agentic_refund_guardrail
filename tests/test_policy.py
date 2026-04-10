@@ -41,6 +41,22 @@ class TestLoadFromDict:
         with pytest.raises(ValueError, match="refund_window_days"):
             load_policy({"item": {"refund_window_days": -1}})
 
+    def test_optional_policy_fields(self):
+        policies = load_policy({
+            "item": {
+                "refund_window_days": 30,
+                "refundable": False,
+                "max_refund_minor_units": 5000,
+                "manual_approval_required_over_minor_units": 2500,
+                "allowed_reasons": ["provider_cancelled"],
+            }
+        })
+        policy = policies["item"]
+        assert policy.refundable is False
+        assert policy.max_refund_minor_units == 5000
+        assert policy.manual_approval_required_over_minor_units == 2500
+        assert policy.allowed_reasons == ("provider_cancelled",)
+
     def test_wrong_type_raises(self):
         with pytest.raises(TypeError, match="file path or dict"):
             load_policy(42)  # type: ignore[arg-type]
@@ -82,6 +98,29 @@ class TestRefundsInit:
                 sku="mystery",
                 transaction_id="pi_1",
                 amount_paid=100,
+                purchased_at=recent_purchase,
+                provider_refund_fn=mock,
+            )
+
+    def test_invalid_amount_paid_raises(self, refunds, recent_purchase):
+        mock = lambda a, t, c: {}  # noqa: E731
+        with pytest.raises(ValueError, match="finite"):
+            refunds.make_refund_tool(
+                sku="shampoo",
+                transaction_id="pi_1",
+                amount_paid=float("nan"),
+                purchased_at=recent_purchase,
+                provider_refund_fn=mock,
+            )
+
+    def test_amount_refunded_cannot_exceed_paid(self, refunds, recent_purchase):
+        mock = lambda a, t, c: {}  # noqa: E731
+        with pytest.raises(ValueError, match="cannot exceed"):
+            refunds.make_refund_tool(
+                sku="shampoo",
+                transaction_id="pi_1",
+                amount_paid_minor_units=1000,
+                amount_refunded_minor_units=2000,
                 purchased_at=recent_purchase,
                 provider_refund_fn=mock,
             )

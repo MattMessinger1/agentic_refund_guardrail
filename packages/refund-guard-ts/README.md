@@ -4,24 +4,27 @@ Server-side refund policy checks between an untrusted AI tool call and your refu
 
 The agent may supply only `amount` and `reason`. Your server supplies order truth from the database, and `refund-guard` checks policy before Stripe/PayPal/Shopify/custom refund code runs.
 
-## What this does for you
+## Why use this
 
-- Turns one real database order into a scoped refund tool.
-- Keeps transaction IDs, paid amounts, already-refunded amounts, SKUs, dates, and refund status out of model control.
-- Blocks bad refund attempts before your provider function runs.
+- The model cannot control trusted refund fields.
+- Policy checks run before your provider function.
+- Common agent footguns are handled: partial-refund state, bad amounts, reason drift, and overlapping retries.
 
-## Who this is for
+## Good fit
 
-- Developers building AI support agents, chatbots, MCP servers, or tool-calling LLM apps that can issue refunds.
-- Vercel AI SDK, OpenAI, LangChain, or MCP builders who need the safe backend shape.
-- Apps with refund windows, partial refunds, final-sale products, allowed reasons, or manual-review thresholds.
+- You are prototyping or shipping an AI support agent that can trigger refunds.
+- Your refund rules live in prompts, scattered backend code, or provider calls.
+- Your app has refund windows, partial refunds, final-sale SKUs, allowed reasons, or manual-review thresholds.
 
-## Who this is NOT for
+## Not a fit
 
-- Manual refund dashboards where a human approves every refund.
-- Read-only agents that never trigger refunds.
-- Backends that already enforce equivalent refund policy before provider calls.
-- Client-side refund flows. Keep refund providers and secrets on the server.
+- Humans approve every refund before money moves.
+- Your agent is read-only.
+- Refund code runs client-side.
+- Your backend already has equivalent tested refund-policy enforcement.
+- You need broad fraud, compliance, chargeback, or risk infrastructure.
+
+For the full fit checklist and integration prompt, see the [GitHub README](https://github.com/MattMessinger1/agentic_refund_guardrail) and [Integration Guide](https://github.com/MattMessinger1/agentic_refund_guardrail/blob/main/docs/INTEGRATION_GUIDE.md).
 
 ## Install
 

@@ -9,13 +9,12 @@ If your AI agent can trigger refunds, do not hand it a raw Stripe/PayPal/Shopify
 
 **refund-guard** is a small server-side policy layer between an untrusted AI tool call and your refund provider. The agent may supply only `amount` and `reason`; your server supplies order truth from the database, and `refund-guard` checks policy before Stripe/PayPal/Shopify/custom refund code runs.
 
-## What this repo does for you
+## Why use this
 
-- Turns one real database order into a scoped refund tool for your agent.
-- Keeps transaction IDs, SKUs, paid amounts, already-refunded amounts, purchase dates, and refund status out of model control.
-- Blocks bad refund attempts before your provider function runs: expired windows, over-refunds, final-sale SKUs, disallowed reasons, manual-review thresholds, and weird model outputs.
-- Gives copy-paste patterns for OpenAI Responses API, Vercel AI SDK, LangChain, MCP, Stripe, Supabase, Shopify, Python, and TypeScript.
-- Lets you test refund policy with fake provider calls before touching real money.
+- The model cannot control trusted refund fields: transaction IDs, SKUs, paid amounts, prior refunds, purchase dates, or refund status.
+- Policy checks run before your provider function: refund windows, remaining balance, final-sale SKUs, allowed reasons, and manual-review thresholds.
+- Common agent footguns are handled: stale partial-refund state, non-finite amounts, reason drift, and overlapping TypeScript retries.
+- Examples and the policy doctor help you copy and test the safe shape before touching real money.
 
 ## Where it fits
 
@@ -23,21 +22,42 @@ If your AI agent can trigger refunds, do not hand it a raw Stripe/PayPal/Shopify
 AI agent -> tool handler -> load order from DB -> refund-guard -> refund provider -> update DB
 ```
 
-## Who this is for
+## Good fit
 
-- Developers vibe-coding AI support agents, chatbots, MCP servers, or tool-calling LLM apps that can issue refunds.
-- Teams that want the safe copy-paste shape: model chooses `amount` and `reason`; server chooses everything else.
-- Apps with refund windows, final-sale products, partial refunds, allowed refund reasons, human-review thresholds, or custom payment backends.
-- Python or TypeScript backends using Stripe, PayPal, Shopify, Supabase Edge Functions, or their own refund API.
+- You are prototyping or shipping an AI support agent that can trigger refunds.
+- Your refund rules live in prompts, scattered `if` statements, or provider-call code.
+- You need a small server-side policy layer before building a custom refund-policy service.
+- Your app has refund windows, partial refunds, final-sale SKUs, allowed reasons, or manual-review thresholds.
 
 Payment providers protect against *technically* invalid refunds. They do not know your business rules. `refund-guard` is the thin layer where those rules live.
 
-## Who this is NOT for
+## Not a fit
 
-- **Manual refund dashboards.** If a human reviews every refund before money moves, they are already the guardrail.
-- **Read-only agents.** If your agent can inspect orders but cannot trigger refunds, there is no refund tool to guard.
-- **Teams with an existing refund-policy engine.** If your backend already checks refund windows, remaining balance, double-refund state, final-sale SKUs, and reason eligibility before calling the provider, this may duplicate that layer.
-- **Client-side refund flows.** Refund calls and provider secrets belong on your server, never in a browser or mobile client.
+- Humans approve every refund before money moves.
+- Your agent is read-only and never triggers refunds.
+- Refund code runs client-side. Provider secrets and refund calls belong on your server.
+- Your backend already has equivalent tested refund-policy enforcement.
+- You need broad fraud, compliance, chargeback, or risk infrastructure, not just refund-policy checks.
+
+## How to use this in 10 minutes
+
+1. Pick Python or TypeScript.
+2. Define SKU refund rules.
+3. Load the real order from your database.
+4. Create a scoped refund tool with paid/refunded/date/status fields.
+5. Give the agent only `amount` and `reason`.
+6. Run the minimal example or policy doctor before real money.
+
+Using Claude or Codex to wire this into an existing app? Start with the prompt in the [Integration Guide](docs/INTEGRATION_GUIDE.md#paste-this-into-claude-or-codex).
+
+## When to think about refund safety again
+
+`refund-guard` handles refund-policy boundaries. It is not your whole payments risk system. Recheck your design when:
+
+- Refund amounts or volume grow enough that abuse would hurt.
+- You need audit logs, approval queues, role-based permissions, or support review.
+- You need fraud, chargeback, compliance, tax/accounting, sanctions/KYC/AML, or marketplace controls.
+- More than one service can issue refunds and needs shared locking or idempotency.
 
 ## Install
 

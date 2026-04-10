@@ -2,14 +2,16 @@
 
 Server-side refund policy checks between trusted order data and your refund provider.
 
-Your app resolves the real order first. `refund-guard` checks policy before Stripe/PayPal/Shopify/custom refund code runs. If your agent supplies orderId, treat it as a lookup hint, not trusted refund data.
+An AI refund agent needs a safety map, not just a refund function. `refund-guard` owns only the agent input boundary, refund-policy gate, and no-provider-call-on-denial gate. Your app, provider, database, and process own the rest.
+
+**Design rule:** 100% is Pass. 99% is Fail. `refund-guard` only claims security boxes it can enforce completely.
 
 ## Why use this
 
 - The model cannot control trusted refund fields.
 - Policy checks run before your provider function.
 - Common agent footguns are handled: partial-refund state, bad amounts, reason drift, and overlapping retries.
-- `refund-guard` is the refund-policy box in a larger safety map: your app owns auth/scoped lookup; your provider/app owns idempotency and persistence.
+- The GitHub repo includes the MECE security map for the boxes this package does not cover.
 
 ## Good fit
 
@@ -27,7 +29,7 @@ Your app resolves the real order first. `refund-guard` checks policy before Stri
 - Your backend already has equivalent tested refund-policy enforcement.
 - You need auth, order ownership, provider idempotency, database locking, fraud, compliance, chargeback, or risk infrastructure handled by this package.
 
-For the full refund safety map and integration prompt, see the [GitHub README](https://github.com/MattMessinger1/agentic_refund_guardrail) and [Integration Guide](https://github.com/MattMessinger1/agentic_refund_guardrail/blob/main/docs/INTEGRATION_GUIDE.md).
+For the full MECE security map and integration prompt, see the [GitHub README](https://github.com/MattMessinger1/agentic_refund_guardrail) and [Integration Guide](https://github.com/MattMessinger1/agentic_refund_guardrail/blob/main/docs/INTEGRATION_GUIDE.md#the-mece-agentic-refund-security-map).
 
 ## Install
 

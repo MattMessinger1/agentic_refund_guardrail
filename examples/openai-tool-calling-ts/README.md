@@ -13,4 +13,6 @@ This is an adapter example: it shows where `refund-guard` fits inside a raw Resp
 - **Copy this if:** you are using the OpenAI SDK directly instead of a higher-level agent framework.
 - **What it does not handle:** real database functions, real Stripe setup, real auth, or production refund persistence.
 
+This covers the agent input boundary and refund-policy gate, not the whole MECE security map.
+
 The handler is intentionally annotated. Replace the declared auth, database, and Stripe functions with your app's real code. `orderId` is route/server context in this example, not a model tool argument.

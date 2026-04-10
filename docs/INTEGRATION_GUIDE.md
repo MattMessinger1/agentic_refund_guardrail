@@ -4,6 +4,10 @@ This guide is based on actually dogfooding refund-guard in a production MCP serv
 
 Use this if your AI agent can trigger refunds, your app can load trusted order data, and you want a deterministic policy gate before money moves. Do not use this for manual refund dashboards, read-only agents, browser-side refund code, apps that cannot verify order scope, or backends that already enforce equivalent refund policy.
 
+An AI refund agent needs a safety map, not just a refund function. `refund-guard` fully handles one critical box in that map: the refund-policy gate after trusted order data is loaded. The other boxes must be owned by your app, provider, database, or process before agents can move money.
+
+**Design rule:** 100% is Pass. 99% is Fail. `refund-guard` only claims the security boxes it can enforce completely.
+
 Mental model:
 
 ```text
@@ -16,21 +20,23 @@ If you just want to see the library run, start with the [toy examples](../exampl
 
 ---
 
-## The full refund safety map
+## The MECE agentic refund security map
 
-Given trusted order data, `refund-guard` fully owns the refund-policy decision. The other boxes are here so you do not miss them while building the flow.
+MECE here means every security category has one clear owner. If a category is at 99%, it is not ready for real money.
 
-| Step | Who owns it | What can go wrong | What refund-guard does |
-|------|-------------|-------------------|-------------------------|
-| Authenticated tool access | Your app/framework | The wrong user, client, or MCP session can call the refund tool | Nothing; require auth before the tool runs |
-| Scoped order lookup | Your app | An agent-supplied `orderId` points at someone else's order | Nothing; resolve through user, ticket, tenant, or admin scope |
-| Trusted order/refund state | Your app/database | Amount paid, prior refunds, SKU, or dates are stale or missing | Uses whatever trusted values you pass in |
-| Refund-policy decision | `refund-guard` | Invalid amount, expired window, final-sale SKU, bad reason, over-refund, or manual-review threshold | Denies before the provider function runs |
-| Provider call | Your app/provider | Provider function ignores the validated amount or uses the wrong transaction | Passes the validated amount and transaction ID to your function |
-| Persisted refund result | Your app/database | Provider succeeds but your DB does not record the refund | Nothing; update your records after provider success |
-| Retries/idempotency | Your app/provider | A timeout or retry creates a duplicate refund | Nothing; use provider idempotency and persisted attempts |
-| Audit/manual review | Your app/process | A denied manual-review case is treated as approved | Returns `manual_approval_required`; your app must not call the provider |
-| Fraud/compliance/chargeback/accounting risk | Your app/process | A policy-valid refund is still abusive, regulated, or messy | Nothing; add risk controls outside this package |
+| Category | Owner | Pass standard | Covered by refund-guard? | How vibe builders solve the rest |
+|----------|-------|---------------|---------------------------|----------------------------------|
+| Tool access control | App/framework | Only authenticated, authorized actors can call refund tools | No | Add framework auth/session checks before tool execution |
+| Order scope and ownership | App | The order belongs to the current user, ticket, tenant, merchant, or admin context | No | Query by `orderId` plus scope; never by `orderId` alone |
+| Authoritative refund facts | App/database/provider | Amount paid, already refunded, SKU, purchase date, and refund status are current and trusted | No | Read fresh facts from your DB/provider at refund time |
+| Agent input boundary | `refund-guard` | Agent cannot supply transaction ID, SKU, paid amount, refunded amount, purchase date, or refund status | Yes, 100% | Create a scoped refund tool before exposing it to the agent |
+| Refund-policy enforcement | `refund-guard` | Invalid amounts, over-refunds, expired windows, final-sale SKUs, disallowed reasons, and manual-review thresholds deny before money moves | Yes, 100% | Pass trusted order facts and SKU policy into `refund-guard` |
+| Provider invocation gate | `refund-guard` + app | Provider function is not called on denial; provider implementation uses the validated amount | Yes for denial gate; no for provider implementation | Keep provider code server-side and forward the validated amount |
+| Provider execution safety | App/provider | Provider secrets, retries, errors, and idempotency are handled correctly | No | Use provider idempotency keys and handle provider errors explicitly |
+| State consistency and persistence | App/database | Refund attempts/results are recorded and cross-service double refunds are prevented | No | Persist attempts/results; use one refund service, DB transactions, locks, or provider idempotency |
+| Evidence, exceptions, and human review | App/process | Refund reasons are true, exceptions are reviewed, and high-risk cases do not auto-refund | No | Keep reason enums narrow; require evidence checks or approval queues |
+| Auditability and accountability | App/process | Every request, actor, decision, denial, provider result, and review is traceable | No | Log actor IDs, order IDs, requested/approved amounts, reasons, denial codes, provider IDs, and timestamps |
+| Fraud, abuse, and compliance risk | App/process | Fraud, chargeback, sanctions/KYC/AML, tax/accounting, marketplace, and regulated-product risks are handled outside the policy gate | No | Use dedicated risk, compliance, chargeback, accounting, and marketplace controls |
 
 ---
 
@@ -45,6 +51,8 @@ Integrate refund-guard as a server-side policy gate after trusted order data is 
 - inspect every refund path and every order lookup path
 - if a tool accepts orderId, treat it as a lookup hint and resolve it through user/session/ticket/tenant/admin scope before creating the refund tool
 - do not treat refund-guard as auth, order ownership, fraud, compliance, provider idempotency, or database locking
+- classify each MECE security category as covered 100% by refund-guard, handled 100% by app/provider/process, or missing
+- do not mark anything under 100% as passing for money movement
 - load the real order or charge from the database before creating the refund tool
 - never let the model supply transaction IDs, SKUs, amount paid, amount already refunded, purchase date, or refund status
 - use server-scoped tool schemas with only amount and reason when possible
@@ -57,7 +65,7 @@ Integrate refund-guard as a server-side policy gate after trusted order data is 
 - update persisted refunded amount only after provider success
 - add or update fake-provider tests for approved, denied, already-refunded, partial-refund, and disallowed-reason cases
 
-After the change, classify each safety step as handled by refund-guard, handled by the app, or still missing/out of scope. Summarize every guarded refund path, unguarded refund path, scoped order lookup, and remaining unscoped order lookup.
+After the change, summarize every guarded refund path, unguarded refund path, scoped order lookup, remaining unscoped order lookup, and any missing category that blocks real-money refunds.
 ```
 
 ---

@@ -43,13 +43,14 @@ refund_tool = refunds.make_refund_tool(
     sku=order.sku,
     transaction_id=order.transaction_id,
     amount_paid_minor_units=order.amount_cents,  # library divides by 100
+    amount_refunded_minor_units=order.refunded_cents,
     purchased_at=order.purchased_at,
     refunded_at=order.refunded_at,               # None = not yet refunded
     provider_refund_fn=my_existing_refund_fn,     # your Stripe / PayPal / Shopify call
 )
 
-result = refund_tool()      # full refund (no amount needed)
-result = refund_tool(50)    # or partial refund
+result = refund_tool(reason="provider_cancelled")      # full remaining refund
+result = refund_tool(50, reason="duplicate_charge")    # or partial refund
 # {"status": "approved", "refunded_amount": 100.0, ...}
 # {"status": "denied", "reason": "refund_window_expired", ...}
 ```
@@ -60,9 +61,10 @@ That's it. Call with no argument for a full refund, or pass an amount for a part
 
 - **Already refunded** -- if `refunded_at` is set, denied immediately
 - **Refund window** -- still within `refund_window_days` for that SKU
-- **Positive amount** -- must be > 0
+- **Finite positive amount** -- must be a real number > 0
 - **Amount cap** -- cannot exceed what was paid
 - **Remaining balance** -- handles partial refunds (can't refund $60 twice on a $100 order)
+- **Policy caps** -- optional max refund amount, allowed reasons, and manual-review threshold
 
 If any check fails, your provider function is **never called** -- no money moves.
 
@@ -78,12 +80,13 @@ const refund = refunds.makeRefundTool({
   sku: order.sku,
   transactionId: order.transactionId,
   amountPaidMinorUnits: order.amountCents,
+  amountRefundedMinorUnits: order.refundedCents,
   purchasedAt: order.purchasedAt,
   refundedAt: order.refundedAt,
   providerRefundFn: myExistingRefundFn,
 });
 
-const result = await refund();       // full refund -- or refund(50) for partial
+const result = await refund(undefined, { reason: "provider_cancelled" });
 const message = DENIAL_MESSAGES[result.reason as string] ?? "Refund processed.";
 ```
 
@@ -99,6 +102,15 @@ Both implementations follow the **same** behavior, enforced by [shared parity te
 |-------|------|-------|
 | `policy` | YAML file path **or** plain object `{ skus: { sku_name: { refund_window_days: N } } }` | Loaded once; reuse the instance |
 
+Optional SKU policy fields:
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `refundable` | `boolean` | Set `false` for final-sale SKUs |
+| `max_refund_minor_units` | `int` | Per-refund cap in cents/minor units |
+| `manual_approval_required_over_minor_units` | `int` | Deny automated refunds above this amount |
+| `allowed_reasons` | `string[]` | Allowed reason codes, checked when the tool is called |
+
 ### `make_refund_tool(**opts)` / `makeRefundTool(opts)`
 
 | Option | Type | Required | Default |
@@ -107,20 +119,22 @@ Both implementations follow the **same** behavior, enforced by [shared parity te
 | `transaction_id` / `transactionId` | `string` | yes | -- |
 | `amount_paid` / `amountPaid` | `number` | one of these | -- |
 | `amount_paid_minor_units` / `amountPaidMinorUnits` | `int` / `number` | one of these | -- |
+| `amount_refunded` / `amountRefunded` | `number` | no | `0` |
+| `amount_refunded_minor_units` / `amountRefundedMinorUnits` | `int` / `number` | no | `0` |
 | `purchased_at` / `purchasedAt` | `datetime` / `Date` | yes | -- |
 | `provider_refund_fn` / `providerRefundFn` | `(amount, txn_id, currency) -> any` | yes | -- |
 | `refunded_at` / `refundedAt` | `datetime` / `Date` or `None`/`null` | no | `None` |
 | `currency` | `string` | no | `"usd"` |
 | `provider` | `string` | no | `"unknown"` |
 
-Provide **one** of `amount_paid` (dollars) or `amount_paid_minor_units` (cents -- divided by 100 internally). Providing both raises an error.
+Provide **one** of `amount_paid` (dollars) or `amount_paid_minor_units` (cents -- divided by 100 internally). Providing both raises an error. If the order has previous partial refunds, also pass `amount_refunded_minor_units` or `amount_refunded` from your database so a fresh per-request tool starts from the persisted remaining balance.
 
 ### The refund callable: `refund_tool(amount?)` / `await refund(amount?)`
 
 | Call | Behavior |
 |------|----------|
-| `refund_tool()` | Full refund of the remaining balance (`amount_paid - total_refunded`) |
-| `refund_tool(50)` | Partial refund of $50 |
+| `refund_tool(reason="provider_cancelled")` / `await refund(undefined, { reason })` | Full refund of the remaining balance (`amount_paid - amount_refunded`) |
+| `refund_tool(50, reason="duplicate_charge")` / `await refund(50, { reason })` | Partial refund of $50 |
 
 > **Important:** The library passes the validated amount to your `provider_refund_fn`. If your provider function ignores the amount parameter, the amount checks provide no protection. Always forward the amount to your payment API.
 
@@ -133,6 +147,10 @@ from refund_guard import DENIAL_MESSAGES
 
 A dict / `Record<string, string>` mapping every denial reason to a user-facing message.
 
+### Result types
+
+TypeScript exports `RefundResult`, `ApprovedRefundResult`, `DeniedRefundResult`, `ErrorRefundResult`, and `DenialReason` for autocomplete and status narrowing. Python exports matching `TypedDict` aliases for type checkers.
+
 ---
 
 ## Denial reasons
@@ -143,7 +161,11 @@ A dict / `Record<string, string>` mapping every denial reason to a user-facing m
 | `refund_window_expired` | Purchase older than the SKU's window |
 | `amount_exceeds_limit` | Requested more than was paid |
 | `amount_exceeds_remaining` | Not enough balance after partial refunds |
+| `amount_exceeds_policy_max` | Requested more than the SKU policy allows |
 | `invalid_amount` | Zero or negative |
+| `not_refundable` | SKU policy has `refundable: false` |
+| `refund_reason_not_allowed` | Reason was missing or not in `allowed_reasons` |
+| `manual_approval_required` | Amount is above the automated refund threshold |
 | `provider_error` | Your provider threw an exception |
 
 ---
@@ -154,6 +176,8 @@ A dict / `Record<string, string>` mapping every denial reason to a user-facing m
 |---------|-----|
 | Every refund denied as `amount_exceeds_limit` | You're passing cents to `amount_paid`. Use `amount_paid_minor_units` instead. |
 | Every refund denied as `already_refunded` | You're passing a non-null `refunded_at`. This order is already refunded in your DB. |
+| Partial refunds work once but not across requests | Pass `amount_refunded_minor_units` from your database each time you create the tool. |
+| Refund denied as `refund_reason_not_allowed` | Pass a reason allowed by that SKU's `allowed_reasons` policy. |
 | `SKU 'x' not found in policy` | Add that SKU to your policy object or YAML file. |
 | Forgot `await` (TypeScript) | The callable is async: `const r = await refund()`. |
 | Refunds go through but amount is wrong | Your `providerRefundFn` must forward the `amount` parameter to your payment API. |
@@ -175,10 +199,10 @@ No. Pick whichever your backend uses.
 `(amount, transaction_id, currency) -> anything`. Same for Stripe, PayPal, Shopify, or your own API.
 
 **What about double refunds across HTTP requests?**
-Pass `refunded_at` from your database. The library denies immediately if it's set. If you don't pass it, you need to check it yourself.
+Pass `refunded_at` for fully refunded orders and `amount_refunded_minor_units` for previous partial refunds. The library denies immediately if `refunded_at` is set and uses `amount_refunded_minor_units` to compute the remaining balance for fresh request-scoped tools.
 
 **What data does the agent control?**
-The refund amount (or nothing at all -- call with no argument for a full refund). SKU, transaction ID, amount paid, and purchase date all come from your database -- never from the agent.
+The refund amount and reason. SKU, transaction ID, amount paid, amount already refunded, and purchase date all come from your database -- never from the agent.
 
 **Is this safe?**
 The agent is untrusted. Your app provides order truth (SKU, IDs, amounts, dates). Your payment provider handles money. The agent only chooses how much to refund, inside the bounds you set.
@@ -196,13 +220,23 @@ The library enforces hard limits (window, amount, balance). Your agent's system 
 **I'm wiring this into a real app with a database and Stripe. Where do I start?**
 Read the [Integration Guide](docs/INTEGRATION_GUIDE.md) -- a walkthrough based on actual production usage.
 
+**I'm building with OpenAI, Vercel AI SDK, LangChain, or MCP. Where are the agent examples?**
+Start with [Agentic refund flow recipes](docs/AGENTIC_REFUND_FLOWS.md).
+
+**Can I test my policy before touching Stripe?**
+Yes. Run the policy doctor with fake provider calls:
+
+```bash
+refund-guard doctor examples/doctor/policy.yaml examples/doctor/scenarios.json
+```
+
 ---
 
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, tests, and PR guidelines.
 
-Both languages run the **same 20 test scenarios** from [`contracts/parity/cases.json`](contracts/parity/cases.json). If you change behavior in one language, the shared tests catch the drift.
+Both languages run the **same 26 test scenarios** from [`contracts/parity/cases.json`](contracts/parity/cases.json). If you change behavior in one language, the shared tests catch the drift.
 
 ---
 

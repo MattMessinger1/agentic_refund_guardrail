@@ -47,7 +47,7 @@ cd examples/minimal-ts && npm ci && npm start
 
 If you change **when** a refund is allowed/denied, or **what** is returned:
 
-1. Update **[contracts/parity/cases.json](contracts/parity/cases.json)** with new scenarios (or adjust existing ones). There are currently **20 shared test cases**.
+1. Update **[contracts/parity/cases.json](contracts/parity/cases.json)** with new scenarios (or adjust existing ones). There are currently **26 shared test cases**.
 2. Make **Python** and **TypeScript** pass the same fixtures.
 3. Mention the change in your PR description so maintainers can bump **one** semver on both PyPI and npm when releasing.
 

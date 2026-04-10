@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -122,6 +123,20 @@ class TestDenied:
         assert result["max_allowed"] == 120.00
         assert len(provider.calls) == 0
 
+    def test_nan_amount_is_denied(self, refunds, recent_purchase):
+        provider = make_mock_provider()
+        tool = refunds.make_refund_tool(
+            sku="shampoo",
+            transaction_id="pi_nan",
+            amount_paid=120.00,
+            purchased_at=recent_purchase,
+            provider_refund_fn=provider,
+        )
+        result = tool(math.nan)
+        assert result["status"] == "denied"
+        assert result["reason"] == "invalid_amount"
+        assert len(provider.calls) == 0
+
     def test_amount_exceeds_remaining_after_partial(self, refunds, recent_purchase):
         provider = make_mock_provider()
         tool = refunds.make_refund_tool(
@@ -139,6 +154,22 @@ class TestDenied:
         assert second["reason"] == "amount_exceeds_remaining"
         assert second["remaining"] == 40.00
         assert second["already_refunded"] == 60.00
+
+    def test_amount_exceeds_persisted_remaining_from_database(self, refunds, recent_purchase):
+        provider = make_mock_provider()
+        tool = refunds.make_refund_tool(
+            sku="shampoo",
+            transaction_id="pi_persisted_partial",
+            amount_paid=100.00,
+            amount_refunded=60.00,
+            purchased_at=recent_purchase,
+            provider_refund_fn=provider,
+        )
+        result = tool(60.00)
+        assert result["status"] == "denied"
+        assert result["reason"] == "amount_exceeds_remaining"
+        assert result["remaining"] == 40.00
+        assert len(provider.calls) == 0
 
     def test_exact_remaining_still_works(self, refunds, recent_purchase):
         provider = make_mock_provider()

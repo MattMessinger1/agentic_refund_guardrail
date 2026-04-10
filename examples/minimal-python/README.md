@@ -11,4 +11,4 @@ pip install -e ".[dev]"
 python examples/minimal-python/run.py
 ```
 
-You should see one **approved** result and one **denied** result (`amount_exceeds_remaining` or `amount_exceeds_limit`).
+You should see two **approved** results, then one **denied** result (`invalid_amount`) once no refundable balance remains.

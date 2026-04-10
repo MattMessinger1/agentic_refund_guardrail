@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "description": "Shared behavioral contract for refund-guard Python and TypeScript. CI runs these against both implementations.",
   "tests": [
     {
@@ -465,6 +465,184 @@
             "status": "denied",
             "reason": "invalid_amount",
             "transaction_id": "pi_exhaust_noarg"
+          }
+        }
+      ]
+    },
+    {
+      "id": "denied_exceeds_persisted_refunded_amount",
+      "description": "A fresh request-scoped tool starts from the database's persisted refunded amount",
+      "policy": { "skus": { "shampoo": { "refund_window_days": 30 } } },
+      "clock_now": "2026-06-15T12:00:00Z",
+      "sku": "shampoo",
+      "transaction_id": "pi_persisted_partial",
+      "amount_paid": 100,
+      "amount_refunded": 60,
+      "purchased_at": "2026-06-10T12:00:00Z",
+      "currency": "usd",
+      "steps": [
+        {
+          "amount": 60,
+          "provider": "success",
+          "expect": {
+            "status": "denied",
+            "reason": "amount_exceeds_remaining",
+            "remaining": 40,
+            "already_refunded": 60,
+            "transaction_id": "pi_persisted_partial"
+          }
+        },
+        {
+          "amount": null,
+          "provider": "success",
+          "expect": {
+            "status": "approved",
+            "refunded_amount": 40,
+            "transaction_id": "pi_persisted_partial"
+          },
+          "expect_provider_call": [40, "pi_persisted_partial", "usd"]
+        }
+      ]
+    },
+    {
+      "id": "denied_non_refundable_sku",
+      "policy": {
+        "skus": {
+          "final_sale": { "refund_window_days": 30, "refundable": false }
+        }
+      },
+      "clock_now": "2026-06-15T12:00:00Z",
+      "sku": "final_sale",
+      "transaction_id": "pi_final",
+      "amount_paid": 100,
+      "purchased_at": "2026-06-10T12:00:00Z",
+      "currency": "usd",
+      "steps": [
+        {
+          "amount": 20,
+          "provider": "success",
+          "expect": {
+            "status": "denied",
+            "reason": "not_refundable",
+            "transaction_id": "pi_final"
+          }
+        }
+      ]
+    },
+    {
+      "id": "denied_policy_max_refund",
+      "policy": {
+        "skus": {
+          "shampoo": {
+            "refund_window_days": 30,
+            "max_refund_minor_units": 2500
+          }
+        }
+      },
+      "clock_now": "2026-06-15T12:00:00Z",
+      "sku": "shampoo",
+      "transaction_id": "pi_policy_max",
+      "amount_paid": 100,
+      "purchased_at": "2026-06-10T12:00:00Z",
+      "currency": "usd",
+      "steps": [
+        {
+          "amount": 30,
+          "provider": "success",
+          "expect": {
+            "status": "denied",
+            "reason": "amount_exceeds_policy_max",
+            "max_allowed": 25,
+            "transaction_id": "pi_policy_max"
+          }
+        }
+      ]
+    },
+    {
+      "id": "approved_allowed_refund_reason",
+      "policy": {
+        "skus": {
+          "success_fee": {
+            "refund_window_days": 90,
+            "allowed_reasons": ["provider_cancelled", "duplicate_charge"]
+          }
+        }
+      },
+      "clock_now": "2026-06-15T12:00:00Z",
+      "sku": "success_fee",
+      "transaction_id": "pi_reason_ok",
+      "amount_paid": 100,
+      "purchased_at": "2026-06-10T12:00:00Z",
+      "currency": "usd",
+      "steps": [
+        {
+          "amount": 50,
+          "reason": "provider_cancelled",
+          "provider": "success",
+          "expect": {
+            "status": "approved",
+            "refunded_amount": 50,
+            "reason": "provider_cancelled",
+            "transaction_id": "pi_reason_ok"
+          }
+        }
+      ]
+    },
+    {
+      "id": "denied_disallowed_refund_reason",
+      "policy": {
+        "skus": {
+          "success_fee": {
+            "refund_window_days": 90,
+            "allowed_reasons": ["provider_cancelled", "duplicate_charge"]
+          }
+        }
+      },
+      "clock_now": "2026-06-15T12:00:00Z",
+      "sku": "success_fee",
+      "transaction_id": "pi_reason_bad",
+      "amount_paid": 100,
+      "purchased_at": "2026-06-10T12:00:00Z",
+      "currency": "usd",
+      "steps": [
+        {
+          "amount": 50,
+          "reason": "changed_mind",
+          "provider": "success",
+          "expect": {
+            "status": "denied",
+            "reason": "refund_reason_not_allowed",
+            "requested_reason": "changed_mind",
+            "transaction_id": "pi_reason_bad"
+          }
+        }
+      ]
+    },
+    {
+      "id": "denied_manual_approval_threshold",
+      "policy": {
+        "skus": {
+          "premium": {
+            "refund_window_days": 30,
+            "manual_approval_required_over_minor_units": 5000
+          }
+        }
+      },
+      "clock_now": "2026-06-15T12:00:00Z",
+      "sku": "premium",
+      "transaction_id": "pi_manual",
+      "amount_paid": 100,
+      "purchased_at": "2026-06-10T12:00:00Z",
+      "currency": "usd",
+      "steps": [
+        {
+          "amount": 75,
+          "provider": "success",
+          "expect": {
+            "status": "denied",
+            "reason": "manual_approval_required",
+            "approval_required_over": 50,
+            "transaction_id": "pi_manual"
           }
         }
       ]

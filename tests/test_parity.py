@@ -44,9 +44,9 @@ def test_shared_parity_fixtures_match_python():
     with open(CASES_PATH) as f:
         cases_doc = json.load(f)
 
-    assert cases_doc["version"] == 1
+    assert cases_doc["version"] == 2
     tests = cases_doc["tests"]
-    assert len(tests) == 20
+    assert len(tests) == 26
 
     for case in tests:
         clock = _parse_iso(case["clock_now"])
@@ -73,6 +73,14 @@ def test_shared_parity_fixtures_match_python():
         else:
             tool_kwargs["amount_paid"] = case["amount_paid"]
 
+        if "amount_refunded_minor_units" in case and "amount_refunded" in case:
+            tool_kwargs["amount_refunded"] = case["amount_refunded"]
+            tool_kwargs["amount_refunded_minor_units"] = case["amount_refunded_minor_units"]
+        elif "amount_refunded_minor_units" in case:
+            tool_kwargs["amount_refunded_minor_units"] = case["amount_refunded_minor_units"]
+        elif "amount_refunded" in case:
+            tool_kwargs["amount_refunded"] = case["amount_refunded"]
+
         if "refunded_at" in case and case["refunded_at"] is not None:
             tool_kwargs["refunded_at"] = _parse_iso(case["refunded_at"])
 
@@ -88,7 +96,12 @@ def test_shared_parity_fixtures_match_python():
             tool._provider_refund_fn = _make_provider(mode, calls)  # type: ignore[attr-defined]
 
             step_amount = step["amount"]
-            result = tool() if step_amount is None else tool(float(step_amount))
+            reason = step.get("reason")
+            result = (
+                tool(reason=reason)
+                if step_amount is None
+                else tool(float(step_amount), reason=reason)
+            )
             exp = step["expect"]
             _assert_subset(exp, result)
 

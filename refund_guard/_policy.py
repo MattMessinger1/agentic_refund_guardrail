@@ -11,6 +11,10 @@ class SkuPolicy:
     """Refund rules for a single SKU."""
 
     refund_window_days: int
+    refundable: bool = True
+    max_refund_minor_units: int | None = None
+    manual_approval_required_over_minor_units: int | None = None
+    allowed_reasons: tuple[str, ...] | None = None
 
 
 def load_policy(source: Union[str, Path, dict]) -> dict[str, SkuPolicy]:
@@ -58,6 +62,51 @@ def _parse_dict(raw: dict) -> dict[str, SkuPolicy]:
             raise ValueError(
                 f"SKU '{sku_name}' must have a non-negative integer 'refund_window_days'"
             )
-        policies[sku_name] = SkuPolicy(refund_window_days=window)
+
+        refundable = rules.get("refundable", True)
+        if not isinstance(refundable, bool):
+            raise ValueError(f"SKU '{sku_name}' field 'refundable' must be a boolean")
+
+        max_refund_minor_units = _optional_non_negative_int(
+            sku_name, rules, "max_refund_minor_units"
+        )
+        manual_approval_required_over_minor_units = _optional_non_negative_int(
+            sku_name, rules, "manual_approval_required_over_minor_units"
+        )
+        allowed_reasons = _optional_string_tuple(sku_name, rules, "allowed_reasons")
+
+        policies[sku_name] = SkuPolicy(
+            refund_window_days=window,
+            refundable=refundable,
+            max_refund_minor_units=max_refund_minor_units,
+            manual_approval_required_over_minor_units=manual_approval_required_over_minor_units,
+            allowed_reasons=allowed_reasons,
+        )
 
     return policies
+
+
+def _optional_non_negative_int(
+    sku_name: str, rules: dict, field: str
+) -> int | None:
+    value = rules.get(field)
+    if value is None:
+        return None
+    if not isinstance(value, int) or value < 0:
+        raise ValueError(
+            f"SKU '{sku_name}' field '{field}' must be a non-negative integer"
+        )
+    return value
+
+
+def _optional_string_tuple(
+    sku_name: str, rules: dict, field: str
+) -> tuple[str, ...] | None:
+    value = rules.get(field)
+    if value is None:
+        return None
+    if not isinstance(value, list) or not all(
+        isinstance(item, str) and item for item in value
+    ):
+        raise ValueError(f"SKU '{sku_name}' field '{field}' must be a list of strings")
+    return tuple(value)

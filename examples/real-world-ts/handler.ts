@@ -14,7 +14,11 @@ import { Refunds, DENIAL_MESSAGES } from "@mattmessinger/refund-guard";
 
 const refundGuard = new Refunds({
   skus: {
-    success_fee: { refund_window_days: 90 },
+    success_fee: {
+      refund_window_days: 90,
+      allowed_reasons: ["booking_cancelled", "duplicate_charge", "technical_error"],
+      manual_approval_required_over_minor_units: 5000,
+    },
   },
 });
 
@@ -29,6 +33,7 @@ export async function handleRefund(chargeId: string, reason: string) {
       id: true,
       stripe_payment_intent: true,
       amount_cents: true,
+      refunded_cents: true,
       charged_at: true,
       refunded_at: true,
     },
@@ -41,7 +46,8 @@ export async function handleRefund(chargeId: string, reason: string) {
   // ─── 2b. Create the guarded refund tool ─────────────────────────
   //
   // amountPaidMinorUnits: pass cents directly -- library divides by 100
-  // refundedAt: pass your DB's refund timestamp -- library blocks double-refunds
+  // amountRefundedMinorUnits: pass prior partial refunds from your DB
+  // refundedAt: pass your DB's full-refund timestamp -- library blocks double-refunds
   //
   // IMPORTANT: providerRefundFn receives the validated amount from the guard.
   // Always forward it to your payment API. If you ignore it, the guard's
@@ -51,6 +57,7 @@ export async function handleRefund(chargeId: string, reason: string) {
     sku: "success_fee",
     transactionId: charge.stripe_payment_intent,
     amountPaidMinorUnits: charge.amount_cents,
+    amountRefundedMinorUnits: charge.refunded_cents ?? 0,
     purchasedAt: new Date(charge.charged_at),
     refundedAt: charge.refunded_at ? new Date(charge.refunded_at) : null,
     provider: "stripe",
@@ -67,7 +74,7 @@ export async function handleRefund(chargeId: string, reason: string) {
   // No argument = full refund of the remaining balance.
   // Pass an amount for partial refunds: await refund(50.00)
 
-  const result = await refund();
+  const result = await refund(undefined, { reason });
 
   if (result.status === "denied" || result.status === "error") {
     return {

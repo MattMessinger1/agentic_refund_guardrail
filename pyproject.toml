@@ -26,6 +26,9 @@ dependencies = ["pyyaml>=6.0"]
 [project.optional-dependencies]
 dev = ["pytest>=7.0", "pytest-cov>=4.0"]
 
+[project.scripts]
+refund-guard = "refund_guard.doctor:main"
+
 [project.urls]
 Homepage = "https://github.com/MattMessinger1/agentic_refund_guardrail"
 Issues = "https://github.com/MattMessinger1/agentic_refund_guardrail/issues"

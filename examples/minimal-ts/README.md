@@ -15,6 +15,6 @@ npm install
 npm start
 ```
 
-You should see one **approved** result and one **denied** result.
+You should see two **approved** results, then one **denied** result once no refundable balance remains.
 
 When `@mattmessinger/refund-guard` is published to npm, you can instead `npm install @mattmessinger/refund-guard` and import from there.

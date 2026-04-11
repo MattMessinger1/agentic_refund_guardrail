@@ -13,6 +13,7 @@ permissions:
   contents: write
   pull-requests: write
   issues: write
+  statuses: write
 
 jobs:
   prepare:
@@ -97,11 +98,132 @@ jobs:
             --label release \
             --body-file /tmp/release-pr-body.md
 
-      - name: Dispatch release PR checks
+      - name: Dispatch and mirror release PR checks
         env:
           GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ steps.release.outputs.branch }}
+          VERSION: ${{ steps.release.outputs.version }}
         run: |
-          gh workflow run ci.yml --ref "${{ steps.release.outputs.branch }}"
-          gh workflow run release-validation.yml \
-            --ref "${{ steps.release.outputs.branch }}" \
-            -f version="${{ steps.release.outputs.version }}"
+          set -u
+
+          SHA="$(git rev-parse HEAD)"
+          ACTIONS_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions"
+          FAILED=0
+
+          set_status() {
+            local state="$1"
+            local context="$2"
+            local description="$3"
+            local target_url="$4"
+            gh api \
+              --method POST \
+              "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" \
+              -f state="$state" \
+              -f context="$context" \
+              -f description="$description" \
+              -f target_url="$target_url" >/dev/null
+          }
+
+          state_for_conclusion() {
+            case "$1" in
+              success) echo "success" ;;
+              cancelled|skipped|timed_out|action_required|missing) echo "error" ;;
+              *) echo "failure" ;;
+            esac
+          }
+
+          find_run() {
+            local workflow="$1"
+            local run_id=""
+            for _ in {1..24}; do
+              run_id="$(gh run list \
+                --workflow "$workflow" \
+                --branch "$BRANCH" \
+                --event workflow_dispatch \
+                --json databaseId,headSha,createdAt \
+                --jq "map(select(.headSha == \"$SHA\")) | sort_by(.createdAt) | reverse | .[0].databaseId // empty")"
+              if [ -n "$run_id" ]; then
+                echo "$run_id"
+                return 0
+              fi
+              sleep 5
+            done
+            return 1
+          }
+
+          wait_for_run() {
+            local run_id="$1"
+            local status=""
+            for _ in {1..120}; do
+              status="$(gh run view "$run_id" --json status --jq ".status")"
+              if [ "$status" = "completed" ]; then
+                return 0
+              fi
+              sleep 5
+            done
+            return 1
+          }
+
+          update_job_status() {
+            local run_id="$1"
+            local job_name="$2"
+            local context="$3"
+            local conclusion=""
+            local state=""
+            local target_url=""
+            local run_url=""
+
+            conclusion="$(gh run view "$run_id" --json jobs --jq ".jobs[] | select(.name == \"$job_name\") | .conclusion" | tail -n 1)"
+            run_url="$(gh run view "$run_id" --json url --jq ".url")"
+            target_url="$(gh run view "$run_id" --json jobs --jq ".jobs[] | select(.name == \"$job_name\") | .url" | tail -n 1)"
+
+            if [ -z "$conclusion" ]; then
+              conclusion="missing"
+            fi
+            if [ -z "$target_url" ]; then
+              target_url="$run_url"
+            fi
+
+            state="$(state_for_conclusion "$conclusion")"
+            set_status "$state" "$context" "$context ${conclusion}" "$target_url"
+            if [ "$state" != "success" ]; then
+              FAILED=1
+            fi
+          }
+
+          set_status "pending" "python" "Waiting for dispatched CI run." "$ACTIONS_URL"
+          set_status "pending" "typescript" "Waiting for dispatched CI run." "$ACTIONS_URL"
+          set_status "pending" "metadata" "Waiting for dispatched release validation." "$ACTIONS_URL"
+
+          gh workflow run ci.yml --ref "$BRANCH"
+          gh workflow run release-validation.yml --ref "$BRANCH" -f version="$VERSION"
+
+          if ! ci_run_id="$(find_run ci.yml)"; then
+            set_status "error" "python" "Could not find dispatched CI run." "$ACTIONS_URL"
+            set_status "error" "typescript" "Could not find dispatched CI run." "$ACTIONS_URL"
+            exit 1
+          fi
+          if ! validation_run_id="$(find_run release-validation.yml)"; then
+            set_status "error" "metadata" "Could not find dispatched release validation." "$ACTIONS_URL"
+            exit 1
+          fi
+
+          if wait_for_run "$ci_run_id"; then
+            update_job_status "$ci_run_id" "python" "python"
+            update_job_status "$ci_run_id" "typescript" "typescript"
+          else
+            set_status "error" "python" "Timed out waiting for CI." "$ACTIONS_URL"
+            set_status "error" "typescript" "Timed out waiting for CI." "$ACTIONS_URL"
+            FAILED=1
+          fi
+
+          if wait_for_run "$validation_run_id"; then
+            update_job_status "$validation_run_id" "metadata" "metadata"
+          else
+            set_status "error" "metadata" "Timed out waiting for release validation." "$ACTIONS_URL"
+            FAILED=1
+          fi
+
+          if [ "$FAILED" -ne 0 ]; then
+            exit 1
+          fi

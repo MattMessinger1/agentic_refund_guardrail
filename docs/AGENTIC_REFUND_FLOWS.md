@@ -8,7 +8,7 @@ An AI refund agent needs a safety map, not just a refund function. `refund-guard
 
 **Design rule:** 100% is Pass. 99% is Fail. See the [MECE security map](INTEGRATION_GUIDE.md#the-mece-agentic-refund-security-map) before moving real money.
 
-Using Claude or Codex? Start with [Prompt 1: Install the refund-policy gate](INTEGRATION_GUIDE.md#prompt-1-install-the-refund-policy-gate), then run [Prompt 2: Complete the security map](INTEGRATION_GUIDE.md#prompt-2-complete-the-security-map). The prompts include prerequisite discovery work.
+Using Claude or Codex? Start with [Prompt 1: Install the refund-policy gate](INTEGRATION_GUIDE.md#prompt-1-install-the-refund-policy-gate), then run [Prompt 2: Complete the security map](INTEGRATION_GUIDE.md#prompt-2-complete-the-security-map). The prompts include prerequisite discovery work and help you begin covering the rest of the agentic refund security map.
 
 ```text
 tool access -> order scope -> trusted facts -> refund-guard policy gate -> provider execution -> persistence/review/risk controls

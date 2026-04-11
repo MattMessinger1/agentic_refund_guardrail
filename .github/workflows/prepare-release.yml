@@ -1,0 +1,97 @@
+name: Prepare Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version, for example 0.5.0"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: packages/refund-guard-ts/package-lock.json
+
+      - name: Normalize version
+        id: release
+        run: |
+          VERSION="${{ inputs.version }}"
+          VERSION="${VERSION#v}"
+          if ! [[ "$VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "Invalid version '$VERSION'. Expected X.Y.Z, for example 0.5.0." >&2
+            exit 1
+          fi
+          BRANCH="release/v$VERSION"
+          if git ls-remote --heads origin "$BRANCH" | grep -q "$BRANCH"; then
+            echo "Branch $BRANCH already exists." >&2
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Validate release target
+        run: |
+          python scripts/release.py validate-target "${{ steps.release.outputs.version }}" \
+            --tag-state absent \
+            --npm-unpublished \
+            --pypi-unpublished
+
+      - name: Bump synchronized package versions
+        run: |
+          git checkout -b "${{ steps.release.outputs.branch }}"
+          python scripts/release.py set-version "${{ steps.release.outputs.version }}"
+          python scripts/release.py validate-current \
+            --version "${{ steps.release.outputs.version }}" \
+            --tag-state absent \
+            --npm-unpublished \
+            --pypi-unpublished
+          git diff --check
+
+      - name: Commit and push release branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pyproject.toml packages/refund-guard-ts/package.json packages/refund-guard-ts/package-lock.json
+          git commit -m "release v${{ steps.release.outputs.version }}"
+          git push --set-upstream origin "${{ steps.release.outputs.branch }}"
+
+      - name: Open release pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh label create release --color "0E8A16" --description "Release preparation" --force
+          cat > /tmp/release-pr-body.md <<'EOF'
+          ## Summary
+          - Bumps Python and TypeScript package versions to `${{ steps.release.outputs.version }}`.
+          - Keeps npm and PyPI versions synchronized.
+          - The release finalizer will create GitHub Release `v${{ steps.release.outputs.version }}` after this PR merges.
+
+          ## Validation
+          - Release metadata validation runs on this PR.
+          - Standard CI runs Python and TypeScript tests.
+          EOF
+          gh pr create \
+            --base main \
+            --head "${{ steps.release.outputs.branch }}" \
+            --title "[release] v${{ steps.release.outputs.version }}" \
+            --label release \
+            --body-file /tmp/release-pr-body.md

@@ -1,0 +1,50 @@
+name: Release Validation
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, edited, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+jobs:
+  metadata:
+    if: startsWith(github.event.pull_request.title, '[release] v') || startsWith(github.head_ref, 'release/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Extract release version
+        id: release
+        run: |
+          TITLE="${{ github.event.pull_request.title }}"
+          BRANCH="${{ github.head_ref }}"
+          VERSION=""
+          if [[ "$TITLE" =~ ^\[release\]\ v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+            VERSION="${BASH_REMATCH[1]}"
+          elif [[ "$BRANCH" =~ ^release/v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+            VERSION="${BASH_REMATCH[1]}"
+          else
+            echo "Release PR title must be '[release] vX.Y.Z' or branch must be 'release/vX.Y.Z'." >&2
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Validate release metadata
+        run: |
+          python scripts/release.py validate-current \
+            --version "${{ steps.release.outputs.version }}" \
+            --tag-state absent \
+            --npm-unpublished \
+            --pypi-unpublished

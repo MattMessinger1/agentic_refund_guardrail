@@ -22,11 +22,34 @@ jobs:
         working-directory: packages/refund-guard-ts
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name || github.ref_name }}
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
           registry-url: "https://registry.npmjs.org"
+
+      - name: Validate npm release metadata
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          if [ -z "$TAG" ]; then
+            TAG="$GITHUB_REF_NAME"
+          fi
+          if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Publish workflow must run from a release tag like v0.5.0, got '$TAG'." >&2
+            exit 1
+          fi
+          VERSION="${TAG#v}"
+          python scripts/release.py validate-current \
+            --version "$VERSION" \
+            --tag-state present \
+            --npm-unpublished
 
       - name: Install
         run: npm ci

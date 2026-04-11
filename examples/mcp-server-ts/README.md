@@ -8,4 +8,4 @@ The MCP tool accepts an `orderId`, `amount`, and `reason`, but `orderId` is only
 - **Copy this if:** you are exposing refund actions to an MCP client or agent runtime.
 - **What it does not handle:** real persistence, auth, provider credentials, or cross-request database locking.
 
-`orderId` remains realistic for MCP, but order scope and ownership are app-owned boxes that must pass before `refund-guard` runs.
+`orderId` remains realistic for MCP, but order scope and ownership are app-owned responsibilities that must pass before `refund-guard` runs.

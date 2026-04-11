@@ -4,9 +4,9 @@ This guide is based on actually dogfooding refund-guard in a production MCP serv
 
 Use this if your AI agent can trigger refunds, your app can load trusted order data, and you want a deterministic policy gate before money moves. Do not use this for manual refund dashboards, read-only agents, browser-side refund code, apps that cannot verify order scope, or backends that already enforce equivalent refund policy.
 
-An AI refund agent needs a safety map, not just a refund function. `refund-guard` fully handles one critical box in that map: the refund-policy gate after trusted order data is loaded. The other boxes must be owned by your app, provider, database, or process before agents can move money.
+An AI refund agent needs a safety map, not just a refund function. `refund-guard` fully handles one critical security responsibility in that map: the refund-policy gate after trusted order data is loaded. The remaining responsibilities must be owned by your app, provider, database, or process before agents can move money.
 
-**Design rule:** 100% is Pass. 99% is Fail. `refund-guard` only claims the security boxes it can enforce completely.
+**Design rule:** 100% is Pass. 99% is Fail. `refund-guard` only claims the security responsibilities it can enforce completely.
 
 Mental model:
 
@@ -42,15 +42,23 @@ MECE here means every security category has one clear owner. If a category is at
 
 ## Copy/paste prompts for Claude or Codex
 
-Use these prompts when you want a coding agent to wire `refund-guard` into an existing app and then help you close the rest of the MECE security map.
+Use these prompts when you want a coding agent to wire `refund-guard` into an existing app and then help you close the rest of the MECE security map. They are written to be pasted directly.
 
 ### Prompt 1: Install the refund-policy gate
 
 ```text
 Inspect this app for every code path that can trigger a refund. Do not change unrelated behavior.
 
+Before editing:
+- grep for every refund path, including provider SDK calls, custom refund functions, payment/refund edge functions, background jobs, admin actions, and support actions
+- inspect every order, charge, payment, or subscription lookup path involved in those refunds
+- identify the auth/session/ticket/tenant/admin scope that proves the actor may refund that order
+- identify the trusted order fields needed for refund-guard: transaction or payment intent ID, amount paid, amount already refunded, purchase or charge date, refund status or refunded_at, SKU/product, and customer/user/tenant/merchant scope
+- if scoped order lookup cannot be proven, stop before wiring any real provider call; report the blocker and keep provider calls fake or test-only
+
+Focus refund-guard on the categories it can cover 100%: agent input boundary, refund-policy enforcement, and the provider denial gate.
+
 Integrate refund-guard as a server-side policy gate after trusted order data is loaded and before any Stripe/PayPal/Shopify/custom refund call:
-- inspect every refund path and every order lookup path
 - if a tool accepts orderId, treat it as a lookup hint and resolve it through user/session/ticket/tenant/admin scope before creating the refund tool
 - load the real order or charge from the database before creating the refund tool
 - never let the model supply transaction IDs, SKUs, amount paid, amount already refunded, purchase date, or refund status
@@ -64,12 +72,14 @@ Integrate refund-guard as a server-side policy gate after trusted order data is 
 - update persisted refunded amount only after provider success
 - add or update fake-provider tests for approved, denied, already-refunded, partial-refund, and disallowed-reason cases
 
-After the change, summarize every guarded refund path, unguarded refund path, scoped order lookup, and remaining unscoped order lookup.
+After the change, summarize every guarded refund path, unguarded refund path, scoped order lookup, remaining unscoped order lookup, tests added, and blockers before real money can move.
 ```
 
 ### Prompt 2: Complete the security map
 
 ```text
+Run this after Prompt 1 or independently before launch.
+
 Review this app's agentic refund flow against the MECE security map in refund-guard's Integration Guide. Do not treat refund-guard as a complete payments-risk system.
 
 Classify each category as one of:
@@ -104,19 +114,22 @@ For every missing non-package category, produce a concrete implementation direct
 
 At the end, list:
 - categories implemented in this change
+- categories already handled by app/provider/process
 - categories only identified but not implemented
 - blockers before real-money refunds can move
 ```
 
 ---
 
-## Before you start
+## Manual walkthrough: what Prompt 1 is doing
+
+The prompt starts by finding every refund entry point and proving scoped order lookup before any provider call is wired. The walkthrough below is the same safe path if you are doing it by hand.
+
+### Find every refund path
 
 Grep your codebase for every place that triggers a refund (e.g. `stripe.refunds.create`, `refund`, your edge function name). We found **two** separate code paths in our app and almost missed one. Every path needs the guard -- one unguarded path defeats the purpose.
 
----
-
-## Step 1 -- Resolve trusted order data from your database
+### Resolve trusted order data from your database
 
 The library does not query your database. You resolve the order through your app's auth/session/ticket/tenant scope first, then hand the trusted data to refund-guard.
 
@@ -132,9 +145,7 @@ const { data: charge } = await supabase
 
 The exact query depends on your ORM (Prisma, Drizzle, raw SQL, Supabase, etc.) -- what matters is that these values come from **your database**, not from the AI model. `orderId` or `chargeId` is a lookup hint, not proof that the caller may refund the order.
 
----
-
-## Step 2 -- Create the guard and wrap your provider
+### Create the guard and wrap your provider
 
 Use `amountPaidMinorUnits` to pass cents directly -- the library divides by 100 internally. Pass `amountRefundedMinorUnits` from your database for previous partial refunds and `refundedAt` for fully refunded orders.
 
@@ -175,9 +186,7 @@ Your `providerRefundFn` does **not** have to call Stripe directly. In our case, 
 
 > **Important:** Always forward the `amount` parameter to your payment API. If your provider function ignores it, the guard's amount validation provides no protection. For production Stripe calls, also use a stable idempotency key so retries cannot create duplicate refunds.
 
----
-
-## Step 3 -- Call and map results
+### Call and map results
 
 ```typescript
 const result = await refund(undefined, { reason: "booking_cancelled" });
@@ -199,9 +208,7 @@ return {
 
 See the [denial reason glossary](../README.md#denial-reasons) for all codes.
 
----
-
-## Step 4 -- Update your AI agent's system prompt
+### Update your AI agent's system prompt
 
 The library enforces **hard limits** (window, amount, balance). Your AI agent needs **soft guidance** about when to offer refunds in the first place.
 

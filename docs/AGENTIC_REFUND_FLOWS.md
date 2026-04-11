@@ -4,11 +4,11 @@ Use these patterns when an AI agent can trigger refunds.
 
 Use this if you are wiring a refund-capable agent into OpenAI, Vercel AI SDK, LangChain, MCP, Stripe, Supabase, Shopify, or a custom backend that can load trusted order data. Do not use this for manual refund dashboards, read-only agents, client-side refund code, apps that cannot verify order scope, or systems that already enforce the same policy server-side.
 
-An AI refund agent needs a safety map, not just a refund function. `refund-guard` fully handles the refund-policy gate after trusted order data is loaded; your app, provider, database, and process own the surrounding boxes.
+An AI refund agent needs a safety map, not just a refund function. `refund-guard` fully handles the refund-policy gate after trusted order data is loaded; your app, provider, database, and process own the surrounding responsibilities.
 
 **Design rule:** 100% is Pass. 99% is Fail. See the [MECE security map](INTEGRATION_GUIDE.md#the-mece-agentic-refund-security-map) before moving real money.
 
-Using Claude or Codex? Start with [Prompt 1: Install the refund-policy gate](INTEGRATION_GUIDE.md#prompt-1-install-the-refund-policy-gate), then run [Prompt 2: Complete the security map](INTEGRATION_GUIDE.md#prompt-2-complete-the-security-map).
+Using Claude or Codex? Start with [Prompt 1: Install the refund-policy gate](INTEGRATION_GUIDE.md#prompt-1-install-the-refund-policy-gate), then run [Prompt 2: Complete the security map](INTEGRATION_GUIDE.md#prompt-2-complete-the-security-map). The prompts include prerequisite discovery work.
 
 ```text
 tool access -> order scope -> trusted facts -> refund-guard policy gate -> provider execution -> persistence/review/risk controls

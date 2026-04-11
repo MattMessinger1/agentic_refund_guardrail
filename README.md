@@ -7,16 +7,16 @@
 
 If your AI agent can trigger refunds, do not hand it a raw Stripe/PayPal/Shopify refund function.
 
-An AI refund agent needs a safety map, not just a refund function. **refund-guard** fully handles one critical box in that map: the refund-policy gate after trusted order data is loaded. This repo also names the other boxes your app, provider, database, and process must own before agents can move money.
+An AI refund agent needs a safety map, not just a refund function. **refund-guard** fully handles one critical security responsibility in that map: the refund-policy gate after trusted order data is loaded. This repo also names the remaining responsibilities your app, provider, database, and process must own before agents can move money.
 
-**Design rule:** 100% is Pass. 99% is Fail. `refund-guard` only claims the security boxes it can enforce completely.
+**Design rule:** 100% is Pass. 99% is Fail. `refund-guard` only claims the security responsibilities it can enforce completely.
 
 ## Why use this
 
 - **Agent input boundary:** once your app creates the scoped refund tool, the model can request only `amount` and `reason`.
 - **Refund-policy enforcement:** amount validity, paid/remaining caps, refund windows, final-sale SKUs, allowed reasons, and manual-review thresholds.
 - **Provider invocation gate:** your provider function is not called unless policy passes.
-- **Security map:** the repo shows the other boxes you must own instead of pretending this package handles them.
+- **Security map:** the repo shows the other responsibilities you must own instead of pretending this package handles them.
 
 ## Where it fits
 
@@ -26,7 +26,7 @@ AI agent -> tool handler -> resolve trusted order -> refund-guard -> refund prov
 
 ## Agentic refund security map
 
-MECE here means every security box has one clear owner. `refund-guard` either owns a box at 100%, or it does not own that box.
+MECE here means every security category has one clear owner. `refund-guard` either owns a category at 100%, or it does not own that category.
 
 ```mermaid
 flowchart LR
@@ -72,6 +72,8 @@ Payment providers protect against *technically* invalid refunds. They do not kno
 
 ## Copy/paste prompts for vibe builders
 
+These prompts are self-contained: Prompt 1 includes the discovery and prerequisite checks because many builders will paste only the prompt.
+
 - [Prompt 1: Install the refund-policy gate](docs/INTEGRATION_GUIDE.md#prompt-1-install-the-refund-policy-gate)
 - [Prompt 2: Complete the security map](docs/INTEGRATION_GUIDE.md#prompt-2-complete-the-security-map)
 
@@ -93,7 +95,7 @@ Any unauthorized refund or refund fraud is a real problem from day one. Before a
 | Auditability and accountability | App/process | No |
 | Fraud, abuse, and compliance risk | App/process | No |
 
-See the [Integration Guide](docs/INTEGRATION_GUIDE.md#the-mece-agentic-refund-security-map) for how vibe builders can solve the boxes this package does not cover.
+See the [Integration Guide](docs/INTEGRATION_GUIDE.md#the-mece-agentic-refund-security-map) for how vibe builders can solve the responsibilities this package does not cover.
 
 ## Install
 
@@ -299,7 +301,7 @@ Pass `refunded_at` for fully refunded orders and `amount_refunded_minor_units` f
 In the server-scoped pattern, only the refund amount and reason. If your agent supplies `orderId`, treat it as a lookup hint and resolve the order through your app's scope first. SKU, transaction ID, amount paid, amount already refunded, and purchase date all come from your database -- never from the agent.
 
 **Is this safe?**
-It is one safety box, not the whole system. Your app owns auth and scoped order lookup. `refund-guard` owns refund-policy checks. Your provider and persistence layer own money movement, retries, and records.
+It covers one safety responsibility, not the whole system. Your app owns auth and scoped order lookup. `refund-guard` owns refund-policy checks. Your provider and persistence layer own money movement, retries, and records.
 
 **How do I enable logging? (Python)**
 ```python
@@ -309,7 +311,7 @@ logging.getLogger("refund_guard").setLevel(logging.INFO)
 ```
 
 **What do I tell my AI agent about refund policy?**
-The library enforces hard limits (window, amount, balance). Your agent's system prompt should encode *when* to offer refunds. See the [Integration Guide](docs/INTEGRATION_GUIDE.md#step-4--update-your-ai-agents-system-prompt).
+The library enforces hard limits (window, amount, balance). Your agent's system prompt should encode *when* to offer refunds. See the [Integration Guide](docs/INTEGRATION_GUIDE.md#update-your-ai-agents-system-prompt).
 
 **I'm wiring this into a real app with a database and Stripe. Where do I start?**
 Read the [Integration Guide](docs/INTEGRATION_GUIDE.md) -- a walkthrough based on actual production usage.

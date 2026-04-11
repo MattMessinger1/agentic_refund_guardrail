@@ -2,7 +2,7 @@
 
 Server-side refund policy checks between trusted order data and your refund provider.
 
-An AI refund agent needs a safety map, not just a refund function. `refund-guard` owns only the agent input boundary, refund-policy gate, and no-provider-call-on-denial gate. Your app, provider, database, and process own the rest.
+An AI refund agent needs a safety map, not just a refund function. `refund-guard` owns a deterministic series of responsibilities: the agent input boundary, refund-policy gate, and no-provider-call-on-denial gate. Your app, provider, database, and process own the rest.
 
 **Design rule:** 100% is Pass. 99% is Fail. `refund-guard` only claims security responsibilities it can enforce completely.
 
@@ -29,7 +29,7 @@ An AI refund agent needs a safety map, not just a refund function. `refund-guard
 - Your backend already has equivalent tested refund-policy enforcement.
 - You need auth, order ownership, provider idempotency, database locking, fraud, compliance, chargeback, or risk infrastructure handled by this package.
 
-For the full MECE security map and both self-contained copy/paste prompts, see the [GitHub README](https://github.com/MattMessinger1/agentic_refund_guardrail) and [Integration Guide](https://github.com/MattMessinger1/agentic_refund_guardrail/blob/main/docs/INTEGRATION_GUIDE.md#copy-paste-prompts-for-claude-or-codex).
+For the full MECE security map and both self-contained copy/paste prompts to evaluate and adapt for your app, see the [GitHub README](https://github.com/MattMessinger1/agentic_refund_guardrail) and [Integration Guide](https://github.com/MattMessinger1/agentic_refund_guardrail/blob/main/docs/INTEGRATION_GUIDE.md#copy-paste-prompts-for-claude-or-codex).
 
 ## Install
 

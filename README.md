@@ -7,7 +7,7 @@
 
 If your AI agent can trigger refunds, do not hand it a raw Stripe/PayPal/Shopify refund function.
 
-An AI refund agent needs a safety map, not just a refund function. **refund-guard** fully handles one critical security responsibility in that map: the refund-policy gate after trusted order data is loaded. This repo also names the remaining responsibilities your app, provider, database, and process must own before agents can move money.
+An AI refund agent needs a safety map, not just a refund function. **refund-guard** fully handles a deterministic series of security responsibilities after trusted order data is loaded: the agent input boundary, refund-policy enforcement, and the no-provider-call-on-denial gate. This repo also names the remaining responsibilities your app, provider, database, and process must own before agents can move money.
 
 **Design rule:** 100% is Pass. 99% is Fail. `refund-guard` only claims the security responsibilities it can enforce completely.
 
@@ -28,6 +28,8 @@ AI agent -> tool handler -> resolve trusted order -> refund-guard -> refund prov
 
 MECE here means every security category has one clear owner. `refund-guard` either owns a category at 100%, or it does not own that category.
 
+Green nodes are the categories or gates `refund-guard` enforces. Gray nodes are responsibilities your app, provider, database, or process must own.
+
 ```mermaid
 flowchart LR
   A["1. Tool access control<br/>App owns"] --> B["2. Order scope and ownership<br/>App owns"]
@@ -40,6 +42,11 @@ flowchart LR
   H --> I["9. Evidence, exceptions, and human review<br/>App/process owns"]
   I --> J["10. Auditability and accountability<br/>App/process owns"]
   J --> K["11. Fraud, abuse, and compliance risk<br/>App/process owns"]
+
+  class D,E,F refundGuard
+  class A,B,C,G,H,I,J,K appOwned
+  classDef refundGuard fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#14532d;
+  classDef appOwned fill:#f8fafc,stroke:#cbd5e1,color:#0f172a;
 ```
 
 ## Good fit
@@ -72,7 +79,7 @@ Payment providers protect against *technically* invalid refunds. They do not kno
 
 ## Copy/paste prompts for vibe builders
 
-These prompts are self-contained: Prompt 1 includes the discovery and prerequisite checks because many builders will paste only the prompt.
+These are self-contained templates to evaluate and adapt for your app. Prompt 1 includes the discovery and prerequisite checks because many builders will paste only the prompt. Prompt 2 helps you start covering the full agentic refund security map by identifying the non-package responsibilities and blockers before real money moves.
 
 - [Prompt 1: Install the refund-policy gate](docs/INTEGRATION_GUIDE.md#prompt-1-install-the-refund-policy-gate)
 - [Prompt 2: Complete the security map](docs/INTEGRATION_GUIDE.md#prompt-2-complete-the-security-map)
@@ -301,7 +308,7 @@ Pass `refunded_at` for fully refunded orders and `amount_refunded_minor_units` f
 In the server-scoped pattern, only the refund amount and reason. If your agent supplies `orderId`, treat it as a lookup hint and resolve the order through your app's scope first. SKU, transaction ID, amount paid, amount already refunded, and purchase date all come from your database -- never from the agent.
 
 **Is this safe?**
-It covers one safety responsibility, not the whole system. Your app owns auth and scoped order lookup. `refund-guard` owns refund-policy checks. Your provider and persistence layer own money movement, retries, and records.
+It covers a narrow set of safety responsibilities, not the whole system. Your app owns auth and scoped order lookup. `refund-guard` owns the agent input boundary, refund-policy checks, and the no-provider-call-on-denial gate. Your provider and persistence layer own money movement, retries, and records.
 
 **How do I enable logging? (Python)**
 ```python

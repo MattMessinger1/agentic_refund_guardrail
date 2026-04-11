@@ -4,7 +4,7 @@ This guide is based on actually dogfooding refund-guard in a production MCP serv
 
 Use this if your AI agent can trigger refunds, your app can load trusted order data, and you want a deterministic policy gate before money moves. Do not use this for manual refund dashboards, read-only agents, browser-side refund code, apps that cannot verify order scope, or backends that already enforce equivalent refund policy.
 
-An AI refund agent needs a safety map, not just a refund function. `refund-guard` fully handles one critical security responsibility in that map: the refund-policy gate after trusted order data is loaded. The remaining responsibilities must be owned by your app, provider, database, or process before agents can move money.
+An AI refund agent needs a safety map, not just a refund function. `refund-guard` fully handles a deterministic series of security responsibilities after trusted order data is loaded: the agent input boundary, refund-policy enforcement, and the no-provider-call-on-denial gate. The remaining responsibilities must be owned by your app, provider, database, or process before agents can move money.
 
 **Design rule:** 100% is Pass. 99% is Fail. `refund-guard` only claims the security responsibilities it can enforce completely.
 
@@ -42,7 +42,7 @@ MECE here means every security category has one clear owner. If a category is at
 
 ## Copy/paste prompts for Claude or Codex
 
-Use these prompts when you want a coding agent to wire `refund-guard` into an existing app and then help you close the rest of the MECE security map. They are written to be pasted directly.
+Use these prompts when you want a coding agent to wire `refund-guard` into an existing app and then help you start closing the rest of the MECE security map. They are templates to evaluate and adapt for your app, and they are written to be pasted directly.
 
 ### Prompt 1: Install the refund-policy gate
 

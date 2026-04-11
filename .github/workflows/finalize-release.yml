@@ -1,0 +1,75 @@
+name: Finalize Release
+
+on:
+  pull_request:
+    branches: [main]
+    types: [closed]
+
+permissions:
+  contents: write
+  actions: write
+  pull-requests: read
+
+jobs:
+  finalize:
+    if: github.event.pull_request.merged == true && (startsWith(github.event.pull_request.title, '[release] v') || startsWith(github.event.pull_request.head.ref, 'release/v'))
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Extract release version
+        id: release
+        run: |
+          TITLE="${{ github.event.pull_request.title }}"
+          BRANCH="${{ github.event.pull_request.head.ref }}"
+          VERSION=""
+          if [[ "$TITLE" =~ ^\[release\]\ v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+            VERSION="${BASH_REMATCH[1]}"
+          elif [[ "$BRANCH" =~ ^release/v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+            VERSION="${BASH_REMATCH[1]}"
+          else
+            echo "Release PR title must be '[release] vX.Y.Z' or branch must be 'release/vX.Y.Z'." >&2
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Validate finalized release metadata
+        run: |
+          python scripts/release.py validate-current \
+            --version "${{ steps.release.outputs.version }}" \
+            --tag-state absent \
+            --npm-unpublished \
+            --pypi-unpublished
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ steps.release.outputs.version }}"
+          TARGET="${{ github.event.pull_request.merge_commit_sha }}"
+          if [ -z "$TARGET" ] || [ "$TARGET" = "null" ]; then
+            TARGET="$(git rev-parse origin/main)"
+          fi
+          gh release create "v$VERSION" \
+            --target "$TARGET" \
+            --title "v$VERSION" \
+            --notes "Automated release for v$VERSION from PR #${{ github.event.pull_request.number }}."
+
+      - name: Dispatch package publish workflows
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ steps.release.outputs.version }}"
+          gh workflow run publish-npm.yml --ref "v$VERSION"
+          gh workflow run publish-pypi.yml --ref "v$VERSION"

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "refund-guard"
-version = "0.4.0"
+version = "9.9.9"
 description = "Server-side refund policy checks between an AI tool call and your refund provider."
 readme = "README.md"
 license = "MIT"

@@ -9,6 +9,7 @@ on:
         type: string
 
 permissions:
+  actions: write
   contents: write
   pull-requests: write
   issues: write
@@ -95,3 +96,12 @@ jobs:
             --title "[release] v${{ steps.release.outputs.version }}" \
             --label release \
             --body-file /tmp/release-pr-body.md
+
+      - name: Dispatch release PR checks
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run ci.yml --ref "${{ steps.release.outputs.branch }}"
+          gh workflow run release-validation.yml \
+            --ref "${{ steps.release.outputs.branch }}" \
+            -f version="${{ steps.release.outputs.version }}"

@@ -4,13 +4,19 @@ on:
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened, edited, labeled, unlabeled]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version to validate, for example 0.5.0"
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 jobs:
   metadata:
-    if: startsWith(github.event.pull_request.title, '[release] v') || startsWith(github.head_ref, 'release/v')
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.pull_request.title, '[release] v') || startsWith(github.head_ref, 'release/v')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -28,15 +34,22 @@ jobs:
       - name: Extract release version
         id: release
         run: |
-          TITLE="${{ github.event.pull_request.title }}"
-          BRANCH="${{ github.head_ref }}"
+          TITLE="${{ github.event.pull_request.title || '' }}"
+          BRANCH="${{ github.head_ref || github.ref_name }}"
           VERSION=""
-          if [[ "$TITLE" =~ ^\[release\]\ v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${{ inputs.version }}"
+            VERSION="${VERSION#v}"
+          elif [[ "$TITLE" =~ ^\[release\]\ v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
             VERSION="${BASH_REMATCH[1]}"
           elif [[ "$BRANCH" =~ ^release/v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
             VERSION="${BASH_REMATCH[1]}"
           else
             echo "Release PR title must be '[release] vX.Y.Z' or branch must be 'release/vX.Y.Z'." >&2
+            exit 1
+          fi
+          if ! [[ "$VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "Invalid release version '$VERSION'. Expected X.Y.Z." >&2
             exit 1
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"

@@ -33,7 +33,8 @@ To prepare a release:
    - `pyproject.toml`
    - `packages/refund-guard-ts/package.json`
    - `packages/refund-guard-ts/package-lock.json`
-5. Merge the release PR after CI and release validation pass.
+5. The workflow dispatches CI and release validation against the release branch.
+6. Merge the release PR after CI and release validation pass.
 
 When a `[release] vX.Y.Z` PR merges, `.github/workflows/finalize-release.yml` creates GitHub Release `vX.Y.Z` and dispatches the npm and PyPI publish workflows against that tag.
 

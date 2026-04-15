@@ -69,6 +69,8 @@ return { success: true, amount: result.refunded_amount };
 
 The returned callable is **async**. Call with no amount for a full remaining refund, or pass an amount for a partial refund: `await refund(50, { reason: "duplicate_charge" })`. `providerRefundFn` can return a Promise or a plain value.
 
+> **Reason gotcha:** If a SKU policy defines `allowed_reasons`, every approved call must pass a matching reason, for example `await refund(undefined, { reason: "provider_cancelled" })`. Calling `refund()` without a reason is denied as `refund_reason_not_allowed` before your provider function runs.
+
 For previous partial refunds, pass `amountRefundedMinorUnits` from your database every time you create the tool. The in-memory tool also serializes concurrent calls so overlapping retries validate against the updated remaining balance.
 
 The package exports `RefundResult`, `ApprovedRefundResult`, `DeniedRefundResult`, `ErrorRefundResult`, and `DenialReason` for typed result handling.

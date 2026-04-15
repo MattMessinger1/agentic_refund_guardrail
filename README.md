@@ -193,6 +193,8 @@ if (result.status !== "approved") {
 return { success: true, amount: result.refunded_amount };
 ```
 
+> **Reason gotcha:** If a SKU policy defines `allowed_reasons`, every approved call must pass a matching reason. Calling `refund()` without `{ reason }` is denied as `refund_reason_not_allowed` before your provider function runs.
+
 Both implementations follow the **same** behavior, enforced by [shared parity tests](contracts/parity/cases.json).
 
 ---
@@ -281,6 +283,7 @@ TypeScript exports `RefundResult`, `ApprovedRefundResult`, `DeniedRefundResult`,
 | Every refund denied as `already_refunded` | You're passing a non-null `refunded_at`. This order is already refunded in your DB. |
 | Partial refunds work once but not across requests | Pass `amount_refunded_minor_units` from your database each time you create the tool. |
 | Refund denied as `refund_reason_not_allowed` | Pass a reason allowed by that SKU's `allowed_reasons` policy. |
+| TypeScript says `Expected 0-1 arguments, but got 2` for `refund(undefined, { reason })` | Refresh the installed package and lockfile with `npm install @mattmessinger/refund-guard@latest` or `npm ci`; older local installs did not expose the reason-options call shape. |
 | `SKU 'x' not found in policy` | Add that SKU to your policy object or YAML file. |
 | Forgot `await` (TypeScript) | The callable is async: `const r = await refund()`. |
 | Refunds go through but amount is wrong | Your `providerRefundFn` must forward the `amount` parameter to your payment API. |

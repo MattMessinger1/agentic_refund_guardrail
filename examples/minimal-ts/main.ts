@@ -11,7 +11,10 @@ import { Refunds } from "@mattmessinger/refund-guard";
 
 const policy = {
   skus: {
-    demo: { refund_window_days: 30 },
+    demo: {
+      refund_window_days: 30,
+      allowed_reasons: ["booking_cancelled", "duplicate_charge"],
+    },
   },
 };
 
@@ -38,13 +41,13 @@ async function main(): Promise<void> {
     providerRefundFn: fakeProvider,
   });
 
-  console.log("1) Partial refund (should approve $60):");
-  console.log(await refund(60));
+  console.log("1) Partial refund with an allowed reason (should approve $60):");
+  console.log(await refund(60, { reason: "duplicate_charge" }));
 
   console.log("\n2) No amount refunds the remaining balance (should approve $40):");
-  console.log(await refund());
+  console.log(await refund(undefined, { reason: "booking_cancelled" }));
 
-  console.log("\n3) No remaining balance (should deny as invalid_amount):");
+  console.log("\n3) Missing reason is denied before the fake provider is called:");
   console.log(await refund());
 }
 

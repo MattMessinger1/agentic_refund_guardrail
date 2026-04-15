@@ -18,6 +18,15 @@ Before tagging:
 1. `python3 -m pytest` (from repo root)
 2. `cd packages/refund-guard-ts && npm test && npm run build`
 
+The TypeScript test suite includes a packed-consumer compile check. It builds the package, runs `npm pack`, installs the tarball into a tiny throwaway TypeScript consumer, and compiles the documented reason-options call shape:
+
+```typescript
+await refund(undefined, { reason: "booking_cancelled" });
+await refund(5, { reason: "duplicate_charge" });
+```
+
+Do not skip this when changing exports, declaration output, package files, or README examples.
+
 Edits to refund logic must update [contracts/parity/cases.json](contracts/parity/cases.json) when behavior changes.
 
 ## Automated publishing (preferred)

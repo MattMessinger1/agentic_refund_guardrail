@@ -186,23 +186,52 @@ Your `providerRefundFn` does **not** have to call Stripe directly. In our case, 
 
 > **Important:** Always forward the `amount` parameter to your payment API. If your provider function ignores it, the guard's amount validation provides no protection. For production Stripe calls, also use a stable idempotency key so retries cannot create duplicate refunds.
 
+### Keep agent reason schemas narrow
+
+If an agent or MCP tool can request refunds, expose a small enum for `reason` instead of accepting arbitrary text. Keep this enum aligned with the SKU policy's `allowed_reasons`.
+
+```typescript
+import { z } from "zod";
+
+const refundToolSchema = z.object({
+  amount: z.number().positive().optional(),
+  reason: z.enum([
+    "booking_cancelled",
+    "duplicate_charge",
+    "technical_error",
+  ]),
+});
+```
+
+Then pass the parsed reason through to the guard:
+
+```typescript
+const result = await refund(parsed.amount, { reason: parsed.reason });
+```
+
 ### Call and map results
 
 ```typescript
 const result = await refund(undefined, { reason: "booking_cancelled" });
 
-if (result.status === "denied" || result.status === "error") {
+if (result.status === "approved") {
+  const providerData = result.provider_result as Record<string, unknown>;
   return {
-    success: false,
-    message: DENIAL_MESSAGES[result.reason as string] ?? "Refund not allowed.",
+    success: true,
+    refund_id: providerData?.refund_id,
+    amount: result.refunded_amount,
   };
 }
 
-const providerData = result.provider_result as Record<string, unknown>;
+if (result.status === "denied") {
+  const message = DENIAL_MESSAGES[result.reason] ?? "Refund not allowed.";
+  return { success: false, code: result.reason, message };
+}
+
 return {
-  success: true,
-  refund_id: providerData?.refund_id,
-  amount: result.refunded_amount,
+  success: false,
+  code: "provider_error",
+  message: "Refund processing failed. Please try again or review manually.",
 };
 ```
 
@@ -245,3 +274,4 @@ See [agentic flow recipes](AGENTIC_REFUND_FLOWS.md) for OpenAI, Vercel AI SDK, L
 | Forgetting `await` on the refund call | `result` is a Promise, not the actual result | `const result = await refund()` |
 | Provider function ignores `amount` | Guard validates amount but payment API refunds wrong amount | Always forward `amount` to your payment API |
 | Agent sends a random reason | Refund denied as `refund_reason_not_allowed` | Keep `allowed_reasons` in policy and tool schema aligned |
+| Policy has `allowed_reasons` but code calls `refund()` without a reason | Refund denied as `refund_reason_not_allowed` | Call `refund(undefined, { reason })` for full refunds or `refund(amount, { reason })` for partial refunds |
